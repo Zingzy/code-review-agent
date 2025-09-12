@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.16.5",
+    "asyncpg>=0.30.0",
     "celery>=5.5.3",
     "crewai>=0.186.1",
     "email-validator>=2.3.0",
@@ -15,6 +16,7 @@ dependencies = [
     "openai>=1.107.1",
     "psycopg2-binary>=2.9.10",
     "pygithub>=2.8.1",
+    "python-dotenv>=1.1.1",
     "python-multipart>=0.0.20",
     "redis>=6.4.0",
     "requests>=2.32.5",

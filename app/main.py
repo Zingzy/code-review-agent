@@ -8,20 +8,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
-from contextlib import asynccontextmanager
 
 from app.config.settings import get_settings
 from app.utils.logger import logger, log_api_request
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events"""
-    # Startup
-    logger.info("Code Reviewer Agent starting up...")
-    yield
-    # Shutdown
-    logger.info("Code Reviewer Agent shutting down...")
 
 
 # Initialize FastAPI app
@@ -35,7 +24,7 @@ def create_app() -> FastAPI:
         description="Autonomous AI-powered code review agent for GitHub PRs",
         docs_url="/docs",
         redoc_url="/redoc",
-        lifespan=lifespan,
+        openapi_url="/openapi.json",
     )
 
     # CORS middleware
@@ -80,15 +69,13 @@ def create_app() -> FastAPI:
     async def health_check():
         """Health check endpoint"""
         return {
-            "status": "healthy",
+            "status": "Ok!",
             "service": settings.app.name,
             "version": settings.app.version,
         }
 
-    # Root endpoint
     @app.get("/")
     async def root():
-        """Root endpoint"""
         return {
             "message": f"Welcome to {settings.app.name}",
             "version": settings.app.version,

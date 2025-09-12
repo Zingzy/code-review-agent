@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database
   db:
-    image: postgres:15
+    image: postgres:13-trixie # latest stable version as of 2025-09
     container_name: code_review_db
     environment:
       POSTGRES_USER: postgres
@@ -14,7 +14,7 @@ services:
 
   # Redis (Message Broker + Cache)
   redis:
-    image: redis:7
+    image: redis:latest # reccomended by official docker hub page
     container_name: code_review_redis
     ports:
       - "6379:6379"
@@ -23,9 +23,12 @@ services:
   web:
     build: .
     container_name: code_review_web
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: /app/.venv/bin/uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
+      # This mount enables hot reloading for your application code
       - .:/app
+      # This mount masks the host's .venv from overwriting the container's .venv
+      - /app/.venv
     ports:
       - "8000:8000"
     env_file: .env
@@ -36,20 +39,20 @@ services:
       - db
       - redis
 
-  # Celery Worker
-  worker:
-    build: .
-    container_name: code_review_worker
-    command: celery -A app.tasks.celery_app worker --loglevel=info
-    volumes:
-      - .:/app
-    env_file: .env
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/code_review
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
+  # Celery Worker (will be added later)
+  # worker:
+  #   build: .
+  #   container_name: code_review_worker
+  #   command: celery -A app.tasks.celery_app worker --loglevel=info
+  #   volumes:
+  #     - .:/app
+  #   env_file: .env
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:postgres@db:5432/code_review
+  #     - REDIS_URL=redis://redis:6379/0
+  #   depends_on:
+  #     - db
+  #     - redis
 
 volumes:
   postgres_data:
