@@ -32,7 +32,7 @@ def setup_logger() -> None:
     if settings.app.log_to_file:
         log_path = Path(settings.app.log_file_path)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         logger.add(
             log_path,
             format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
@@ -47,7 +47,7 @@ def setup_logger() -> None:
 
 class LoggerMixin:
     """Mixin class to add logging capabilities"""
-    
+
     @property
     def logger(self):
         """Get logger instance for this class"""
@@ -62,7 +62,7 @@ def log_api_request(method: str, path: str, status_code: int, duration: float):
         level = "WARNING"
     else:
         level = "ERROR"
-    
+
     logger.log(level, f"{method} {path} - {status_code} ({duration:.3f}s)")
 
 

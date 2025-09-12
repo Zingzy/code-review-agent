@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 class AppConfig(BaseModel):
     """Application configuration"""
+
     name: str = "Code Reviewer Agent"
     version: str = "1.0.0"
     debug: bool = False
@@ -23,6 +24,7 @@ class AppConfig(BaseModel):
 
 class APIConfig(BaseModel):
     """API server configuration"""
+
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: List[str] = ["*"]
@@ -32,22 +34,26 @@ class APIConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     """Database configuration"""
+
     url: str
 
 
 class RedisConfig(BaseModel):
     """Redis configuration"""
+
     url: str
 
 
 class CeleryConfig(BaseModel):
     """Celery configuration"""
+
     broker_url: str
     result_backend: str
 
 
 class GitHubConfig(BaseModel):
     """GitHub API configuration"""
+
     api_url: str = "https://api.github.com"
     timeout: int = 30
     max_files_per_pr: int = 50
@@ -56,6 +62,7 @@ class GitHubConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     """LLM configuration"""
+
     provider: str = "ollama"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "codellama:13b"
@@ -70,18 +77,28 @@ class LLMConfig(BaseModel):
 
 class AgentConfig(BaseModel):
     """AI Agent configuration"""
+
     max_analysis_time: int = 300
     chunk_size: int = 1000
     max_concurrent_analyses: int = 5
     retry_attempts: int = 3
     analysis_languages: List[str] = [
-        "python", "javascript", "typescript", "java", 
-        "go", "rust", "cpp", "c#", "php", "ruby"
+        "python",
+        "javascript",
+        "typescript",
+        "java",
+        "go",
+        "rust",
+        "cpp",
+        "c#",
+        "php",
+        "ruby",
     ]
 
 
 class CacheConfig(BaseModel):
     """Cache configuration"""
+
     ttl_analysis_results: int = 86400
     ttl_pr_data: int = 3600
     ttl_github_user_data: int = 7200
@@ -90,12 +107,14 @@ class CacheConfig(BaseModel):
 
 class SecurityConfig(BaseModel):
     """Security configuration"""
+
     api_key_header: str = "X-API-Key"
     secret_key: str
 
 
 class Settings(BaseModel):
     """Main application settings"""
+
     app: AppConfig
     api: APIConfig
     database: DatabaseConfig
@@ -111,27 +130,27 @@ class Settings(BaseModel):
 def substitute_env_vars(config_str: str) -> str:
     """Substitute environment variables in config string"""
     pattern = r"\$([A-Z_][A-Z0-9_]*)"
-    
+
     def replacer(match):
         var_name = match.group(1)
         return os.getenv(var_name, f"${var_name}")
-    
+
     return re.sub(pattern, replacer, config_str)
 
 
 def load_config() -> Settings:
     """Load configuration from TOML file"""
     load_dotenv(override=True)
-    
+
     config_path = Path("config.toml")
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
-    
+
     config_data = toml.load(config_path)
     config_str = toml.dumps(config_data)
     config_str = substitute_env_vars(config_str)
     config_data = toml.loads(config_str)
-    
+
     # Create nested configuration objects
     settings = Settings(
         app=AppConfig(**config_data.get("app", {})),
@@ -145,7 +164,7 @@ def load_config() -> Settings:
         cache=CacheConfig(**config_data.get("cache", {})),
         security=SecurityConfig(**config_data.get("security", {})),
     )
-    
+
     return settings
 
 
