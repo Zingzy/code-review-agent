@@ -1,0 +1,64 @@
+# Code Reviewer Agent Configuration
+# Environment variables can be substituted using $VAR_NAME syntax
+
+[app]
+name = "Code Reviewer Agent"
+version = "1.0.0"
+debug = false
+log_level = "INFO"
+log_to_file = true
+log_file_path = "logs/app.log"
+
+[api]
+host = "0.0.0.0" 
+port = 8000
+cors_origins = ["http://localhost:3000", "http://localhost:8080"]
+rate_limit_requests = 100
+rate_limit_window = 60  # seconds
+
+[database]
+url = "$DATABASE_URL"
+
+[redis]
+url = "$REDIS_URL"
+
+[celery]
+broker_url = "$CELERY_BROKER_URL"
+result_backend = "$CELERY_RESULT_BACKEND"
+
+[github]
+api_url = "https://api.github.com"
+timeout = 30
+max_files_per_pr = 50
+max_file_size_kb = 1024  # 1MB
+
+[llm]
+provider = "ollama"  # or "openai"
+ollama_url = "http://localhost:11434"
+ollama_model = "codellama:13b"
+ollama_timeout = 60
+# OpenAI settings
+openai_api_key = "$OPENAI_API_KEY"
+openai_model = "gpt-4"
+openai_max_tokens = 4000
+openai_temperature = 0.1
+# General LLM settings
+max_context_length = 8192
+chunk_size = 1000
+
+[agent]
+max_analysis_time = 300  # 5 minutes
+chunk_size = 1000
+max_concurrent_analyses = 5
+retry_attempts = 3
+analysis_languages = ["python", "javascript", "typescript", "java", "go", "rust", "cpp", "c#", "php", "ruby"]
+
+[cache]
+ttl_analysis_results = 86400  # 24 hours
+ttl_pr_data = 3600  # 1 hour
+ttl_github_user_data = 7200  # 2 hours
+max_cache_size_mb = 512
+
+[security]
+api_key_header = "X-API-Key"
+secret_key = "$SECRET_KEY"

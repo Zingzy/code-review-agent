@@ -1,0 +1,50 @@
+services:
+  # FastAPI web app
+  web:
+    build: .
+    container_name: code_review_web
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - redis
+      - db
+
+  # Celery worker
+  worker:
+    build: .
+    container_name: code_review_worker
+    command: celery -A app.tasks.analyze worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      - redis
+      - db
+
+  # Redis (broker + cache)
+  redis:
+    image: redis:7
+    container_name: code_review_redis
+    ports:
+      - "6379:6379"
+
+  # Postgres (results storage)
+  db:
+    image: postgres:15
+    container_name: code_review_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-code_review}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

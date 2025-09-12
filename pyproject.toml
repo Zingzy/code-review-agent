@@ -1,0 +1,33 @@
+[project]
+name = "code-reviewer-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.16.5",
+    "celery>=5.5.3",
+    "crewai>=0.186.1",
+    "email-validator>=2.3.0",
+    "fastapi>=0.116.1",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "openai>=1.107.1",
+    "psycopg2-binary>=2.9.10",
+    "pygithub>=2.8.1",
+    "python-multipart>=0.0.20",
+    "redis>=6.4.0",
+    "requests>=2.32.5",
+    "sqlmodel>=0.0.24",
+    "toml>=0.10.2",
+    "uvicorn[standard]>=0.35.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.1",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.13.0",
+]
