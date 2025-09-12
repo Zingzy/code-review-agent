@@ -4,16 +4,36 @@ FastAPI Main Application
 Entry point for the Code Reviewer Agent API server.
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
 
-from app.config.settings import get_settings
+from app.config.settings import Settings, get_settings
+from app.config.database import db_manager
 from app.utils.logger import logger, log_api_request
 
 
 # Initialize FastAPI app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management - handle startup and shutdown"""
+    # Startup
+    logger.info("Starting up application...")
+
+    # Initialize database connection (but not create tables - migrations handle that)
+    db_manager.initialize()
+    logger.info("Database connection initialized")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down application...")
+    await db_manager.close()
+    logger.info("Application shutdown complete")
+
+
 def create_app() -> FastAPI:
     """Create and configure FastAPI application"""
     settings = get_settings()
@@ -25,6 +45,7 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
 
     # CORS middleware
@@ -88,13 +109,13 @@ def create_app() -> FastAPI:
 
 
 # Create app instance
-app = create_app()
+app: FastAPI = create_app()
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    settings = get_settings()
+    settings: Settings = get_settings()
 
     logger.info(f"Starting server on {settings.api.host}:{settings.api.port}")
 

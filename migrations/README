@@ -1,0 +1,10 @@
+Generic single-database configuration.
+
+To run new migration version
+
+- uv run alembic revision --autogenerate -m "<message>"
+
+To upgrade the migrations after checking
+
+- uv run alembic upgrade head
+-
