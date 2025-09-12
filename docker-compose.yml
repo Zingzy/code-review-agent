@@ -1,5 +1,25 @@
 services:
-  # FastAPI web app
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: code_review_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: code_review
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis (Message Broker + Cache)
+  redis:
+    image: redis:7
+    container_name: code_review_redis
+    ports:
+      - "6379:6379"
+
+  # FastAPI Web Application
   web:
     build: .
     container_name: code_review_web
@@ -9,42 +29,27 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/code_review
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - redis
       - db
+      - redis
 
-  # Celery worker
+  # Celery Worker
   worker:
     build: .
     container_name: code_review_worker
-    command: celery -A app.tasks.analyze worker --loglevel=info
+    command: celery -A app.tasks.celery_app worker --loglevel=info
     volumes:
       - .:/app
     env_file: .env
-    depends_on:
-      - redis
-      - db
-
-  # Redis (broker + cache)
-  redis:
-    image: redis:7
-    container_name: code_review_redis
-    ports:
-      - "6379:6379"
-
-  # Postgres (results storage)
-  db:
-    image: postgres:15
-    container_name: code_review_db
-    restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-code_review}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/code_review
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
 
 volumes:
   postgres_data:
