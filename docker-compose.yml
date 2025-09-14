@@ -42,20 +42,23 @@ services:
       - db
       - redis
 
-  # Celery Worker (will be added later)
-  # worker:
-  #   build: .
-  #   container_name: code_review_worker
-  #   command: celery -A app.tasks.celery_app worker --loglevel=info
-  #   volumes:
-  #     - .:/app
-  #   env_file: .env
-  #   environment:
-  #     - DATABASE_URL=postgresql://postgres:postgres@db:5432/code_review
-  #     - REDIS_URL=redis://redis:6379/0
-  #   depends_on:
-  #     - db
-  #     - redis
+  # Celery Worker
+  worker:
+    build: .
+    container_name: code_review_worker
+    command: /app/.venv/bin/uv run celery -A app.tasks.celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+      - /app/.venv
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/code_review
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
 
 volumes:
   postgres_data:

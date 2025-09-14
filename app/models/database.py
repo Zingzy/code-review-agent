@@ -71,9 +71,9 @@ class AnalysisTask(SQLModel, table=True):
     progress: float = Field(default=0.0, ge=0.0, le=100.0)
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(), index=True)
+    started_at: Optional[datetime] = Field(default=None)
+    completed_at: Optional[datetime] = Field(default=None)
 
     # Error handling
     error_message: Optional[str] = None
@@ -110,7 +110,7 @@ class AnalysisResult(SQLModel, table=True):
     )
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now())
     analysis_duration: Optional[float] = None  # seconds
 
     # Relationships
@@ -151,7 +151,7 @@ class AnalysisSummary(SQLModel, table=True):
     )
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now())
 
     # Relationships
     task: AnalysisTask = Relationship(back_populates="summary")
