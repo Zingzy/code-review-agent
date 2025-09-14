@@ -5,14 +5,15 @@ Entry point for the Code Reviewer Agent API server.
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import time
 
 from app.config.settings import Settings, get_settings
 from app.config.database import db_manager
-from app.utils.logger import logger, log_api_request
+from app.utils.logger import logger
+from app.utils.exceptions import setup_exception_handlers
+from app.api.v1.router import router as v1_router
 
 
 # Initialize FastAPI app
@@ -53,37 +54,27 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.api.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+    logger.info(f"CORS configured with origins: {settings.api.cors_origins}")
 
-    # Request logging middleware
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        start_time = time.time()
-        response = await call_next(request)
-        process_time = time.time() - start_time
+    # Setup exception handlers
+    setup_exception_handlers(app)
 
-        # Log API request
-        log_api_request(
-            method=request.method,
-            path=str(request.url.path),
-            status_code=response.status_code,
-            duration=process_time,
-        )
+    # Include API routers
+    app.include_router(v1_router)
 
-        # Add timing header
-        response.headers["X-Process-Time"] = str(process_time)
-        return response
-
-    # Exception handler
-    @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Global exception: {exc}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Internal server error", "detail": str(exc)},
-        )
+    # Root endpoint
+    @app.get("/")
+    async def root():
+        return {
+            "message": f"Welcome to {settings.app.name}",
+            "version": settings.app.version,
+            "docs": "/docs",
+            "health": "/health",
+            "api": "/api/v1",
+        }
 
     # Health check endpoint
     @app.get("/health")
@@ -93,15 +84,6 @@ def create_app() -> FastAPI:
             "status": "Ok!",
             "service": settings.app.name,
             "version": settings.app.version,
-        }
-
-    @app.get("/")
-    async def root():
-        return {
-            "message": f"Welcome to {settings.app.name}",
-            "version": settings.app.version,
-            "docs": "/docs",
-            "health": "/health",
         }
 
     logger.info("FastAPI application configured successfully")

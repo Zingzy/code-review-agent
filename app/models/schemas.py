@@ -4,11 +4,12 @@ Pydantic Schemas for API
 Defines request/response models for the API endpoints.
 """
 
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.database import IssueType, IssueSeverity, TaskStatus
 
@@ -18,10 +19,26 @@ class AnalysisRequest(BaseModel):
     """Request model for PR analysis"""
 
     repo_url: str = Field(..., description="GitHub repository URL", max_length=500)
-    pr_number: int = Field(..., description="Pull request number", gt=0)
+    pr_number: int = Field(..., description="Pull request number", gt=0, le=999999)
     github_token: Optional[str] = Field(
         None, description="Optional GitHub token for private repos"
     )
+
+    @field_validator("repo_url")
+    @classmethod
+    def validate_github_repo_url(cls, v: str) -> str:
+        """Validate and normalize GitHub repository URL."""
+        # Basic GitHub URL validation
+        github_pattern = r"^https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/?$"
+
+        normalized_url = v.strip().rstrip("/")
+
+        if not re.match(github_pattern, normalized_url):
+            raise ValueError(
+                "Invalid GitHub repository URL format. Expected: https://github.com/owner/repo"
+            )
+
+        return normalized_url
 
 
 class TaskCancelRequest(BaseModel):

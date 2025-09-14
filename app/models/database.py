@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
+import sqlalchemy as sa
 from sqlmodel import Column, Field, JSON, Relationship, SQLModel
 
 
@@ -54,7 +55,19 @@ class AnalysisTask(SQLModel, table=True):
     github_token: Optional[str] = Field(default=None, max_length=500)
 
     # Status tracking
-    status: TaskStatus = Field(default=TaskStatus.PENDING, index=True)
+    status: TaskStatus = Field(
+        default=TaskStatus.PENDING,
+        sa_column=Column(
+            sa.Enum(
+                TaskStatus,
+                name="taskstatus",
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=False,
+            default=TaskStatus.PENDING,
+            index=True,
+        ),
+    )
     progress: float = Field(default=0.0, ge=0.0, le=100.0)
 
     # Timestamps

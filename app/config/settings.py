@@ -140,7 +140,7 @@ def substitute_env_vars(config_str: str) -> str:
 
 def load_config() -> Settings:
     """Load configuration from TOML file"""
-    load_dotenv(override=True)
+    load_dotenv()
 
     config_path = Path("config.toml")
     if not config_path.exists():

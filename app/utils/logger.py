@@ -45,27 +45,6 @@ def setup_logger() -> None:
     logger.info("Logger initialized successfully")
 
 
-class LoggerMixin:
-    """Mixin class to add logging capabilities"""
-
-    @property
-    def logger(self):
-        """Get logger instance for this class"""
-        return logger.bind(name=self.__class__.__name__)
-
-
-def log_api_request(method: str, path: str, status_code: int, duration: float):
-    """Log API request details"""
-    if 200 <= status_code < 300:
-        level = "INFO"
-    elif 400 <= status_code < 500:
-        level = "WARNING"
-    else:
-        level = "ERROR"
-
-    logger.log(level, f"{method} {path} - {status_code} ({duration:.3f}s)")
-
-
 # Initialize logger when module is imported
 try:
     setup_logger()
@@ -74,4 +53,4 @@ except Exception as e:
     logger.add(sys.stdout, level="INFO")
 
 
-__all__ = ["logger", "LoggerMixin", "log_api_request"]
+__all__ = ["logger"]
