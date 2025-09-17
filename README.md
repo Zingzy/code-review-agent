@@ -373,6 +373,164 @@ curl -X POST "http://localhost:8000/api/v1/cancel/uuid-task-id"
 curl "http://localhost:8000/api/v1/results/uuid-task-id"
 ```
 
+## 🌐 Live Testing
+
+The Code Reviewer Agent is deployed and available for live testing at **https://code-review.spoo.me**.
+
+### Quick Start with Sample PR
+
+Try the service using our sample PR from the URL shortener project:
+
+#### 1. Start Analysis Task
+
+**Submit a PR for analysis:**
+
+```bash
+curl -X POST "https://code-review.spoo.me/api/v1/analyze-pr" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_url": "https://github.com/spoo-me/url-shortener",
+    "pr_number": 79,
+    "github_token": "ghp_your_github_token_here"
+  }'
+```
+
+> **💡 Tip**: It's highly recommended to pass your own GitHub access token in the request. This provides more relaxed rate limits and ensures better service reliability, especially for private repositories or when the public rate limit is exhausted.
+
+**Expected Response:**
+
+```json
+{
+  "task_id": "uuid-task-id",
+  "status": "pending",
+  "message": "Analysis task queued successfully",
+  "estimated_duration": "2-5 minutes"
+}
+```
+
+#### 2. Check Analysis Status
+
+**Monitor your task progress using the returned Task ID:**
+
+```bash
+curl "https://code-review.spoo.me/api/v1/status/uuid-task-id"
+```
+
+**Response Examples:**
+
+```json
+// Initial status
+{
+  "task_id": "uuid-task-id",
+  "status": "pending",
+  "message": "Analysis task queued successfully"
+}
+
+// In progress
+{
+  "task_id": "uuid-task-id",
+  "status": "in_progress",
+  "progress": 45.0,
+  "message": "Analyzing file: src/components/Dashboard.tsx"
+}
+
+// Completed
+{
+  "task_id": "uuid-task-id",
+  "status": "completed", 
+  "progress": 100.0,
+  "message": "Analysis completed successfully"
+}
+```
+
+#### 3. Get Analysis Results
+
+**Retrieve the comprehensive analysis report using the Task ID:**
+
+```bash
+curl "https://code-review.spoo.me/api/v1/results/uuid-task-id"
+```
+
+**Example Response:**
+
+```json
+{
+  "task_id": "uuid-task-id",
+  "status": "completed",
+  "progress": 100.0,
+  "files": [
+    {
+      "name": "main.py",
+      "path": "src/main.py",
+      "language": "python",
+      "size": 2048,
+      "issues": [
+        {
+          "type": "security",
+          "severity": "high",
+          "line": 42,
+          "description": "Potential SQL injection vulnerability.",
+          "suggestion": "Use parameterized queries.",
+          "confidence": 0.95
+        }
+      ]
+    }
+  ],
+    "summary": {
+        "total_files": 1,
+        "total_issues": 1,
+        "critical_issues": 0,
+        "high_issues": 1,
+        "medium_issues": 0,
+        "low_issues": 0,
+        "style_issues": 0,
+        "bug_issues": 0,
+        "performance_issues": 0,
+        "security_issues": 0,
+        "maintainability_issues": 0,
+        "best_practice_issues": 0,
+        "code_quality_score": 0.0,
+        "maintainability_score": 0.0
+    },
+    "created_at": "2025-09-17T12:01:17.308745",
+    "started_at": "2025-09-17T12:01:17.940944",
+    "completed_at": "2025-09-17T12:01:40.288990",
+    "analysis_duration": 22.348046,
+    "error_message": null
+}
+```
+
+### Additional API Endpoints
+
+#### Cancel Running Task
+
+```bash
+curl -X POST "https://code-review.spoo.me/api/v1/cancel/uuid-task-id"
+```
+
+#### Analyze Your Own PR
+
+Replace the sample values with your repository details:
+
+```bash
+curl -X POST "https://code-review.spoo.me/api/v1/analyze-pr" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo_url": "https://github.com/your-username/your-repo",
+    "pr_number": <your-pr-number>,
+    "github_token": "ghp_your_github_token_here"
+  }'
+```
+
+### GitHub Token Setup
+
+To get your GitHub personal access token:
+
+1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Select scopes: `repo` (for private repos) or `public_repo` (for public repos only)
+4. Copy the generated token and use it in the `github_token` field
+
 ## 🧪 Development & Testing
 
 ### Testing Infrastructure
