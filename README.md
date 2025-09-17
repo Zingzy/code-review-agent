@@ -4,8 +4,8 @@ An **autonomous AI-powered code review agent** that analyzes GitHub Pull Request
 
 [![Python](https://img.shields.io/badge/python-3.13-blue)](.)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116-green)](.)
-<!-- [![Tests](https://img.shields.io/badge/tests-75%20passing-green)](.)
-[![Coverage](https://img.shields.io/badge/coverage-41%25-yellow)](.) -->
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zingzy/code-review-agent/ci.yaml)
+![Codecov](https://img.shields.io/codecov/c/github/zingzy/code-review-agent)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 ## 🚀 Features
