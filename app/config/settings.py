@@ -100,6 +100,7 @@ class CacheConfig(BaseModel):
     ttl_pr_data: int = 3600
     ttl_github_user_data: int = 7200
     max_cache_size_mb: int = 512
+    github_repo_ttl: int = 300  # 5 minutes
 
 
 class SecurityConfig(BaseModel):

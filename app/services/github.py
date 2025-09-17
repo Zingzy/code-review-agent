@@ -4,6 +4,7 @@ GitHub API Integration Service
 
 import os
 import re
+import pickle
 from datetime import datetime
 from typing import Dict, Optional, Tuple, Any
 
@@ -18,6 +19,7 @@ from app.utils.exceptions import (
     InvalidRepositoryException,
     RateLimitExceededException,
 )
+from app.utils.redis_client import get_sync_redis_client
 
 
 class GitHubService:
@@ -37,6 +39,8 @@ class GitHubService:
 
         # Determine token to use
         self._token = self._get_github_token(github_token)
+        self._redis_client = get_sync_redis_client()
+        self._cache_ttl = self.settings.cache.github_repo_ttl
 
         # Initialize PyGithub client
         if self._token:
@@ -54,13 +58,8 @@ class GitHubService:
                 "GitHub service initialized without authentication (rate limits will apply)"
             )
 
-        # Track rate limit info
         self._rate_limit_remaining: Optional[int] = None
         self._rate_limit_reset: Optional[datetime] = None
-
-        # Repository cache to avoid redundant API calls
-        self._repo_cache = {}
-        self._cache_ttl = 300  # 5 minutes cache TTL
 
     def _get_github_token(self, provided_token: Optional[str]) -> Optional[str]:
         """Get GitHub token from various sources."""
@@ -244,51 +243,41 @@ class GitHubService:
             InvalidRepositoryException: If repository URL is invalid
             GitHubAPIException: If API request fails
         """
-        import time
-
         try:
             owner, repo_name = self._parse_repo_url(repo_url)
             full_name = f"{owner}/{repo_name}"
             cache_key = f"repo:{full_name}"
-            current_time = time.time()
-
-            logger.debug(f"Repository request for {full_name}, cache key: {cache_key}")
-            logger.debug(f"Current cache keys: {list(self._repo_cache.keys())}")
 
             # Check cache first
-            if cache_key in self._repo_cache:
-                cached_repo, cache_time = self._repo_cache[cache_key]
-                cache_age = current_time - cache_time
-                logger.debug(
-                    f"Found cached repository {full_name}, age: {cache_age:.1f}s, TTL: {self._cache_ttl}s"
-                )
-
-                if current_time - cache_time < self._cache_ttl:
-                    logger.info(
-                        f"Using cached repository: {full_name} (age: {cache_age:.1f}s)"
-                    )
+            cached_repo_data = self._redis_client.get(cache_key)
+            if cached_repo_data:
+                try:
+                    cached_repo = pickle.loads(cached_repo_data)
+                    logger.info(f"Using cached repository: {full_name}")
                     return cached_repo
-                else:
-                    # Cache expired, remove it
-                    logger.debug(f"Cache expired for {full_name}, removing")
-                    del self._repo_cache[cache_key]
+                except (pickle.UnpicklingError, TypeError) as e:
+                    logger.warning(
+                        f"Failed to deserialize cached repository {full_name}: {e}"
+                    )
 
             logger.info(f"Fetching repository from GitHub API: {full_name}")
-
             repository = self._github.get_repo(full_name)
 
             # Cache the repository
-            self._repo_cache[cache_key] = (repository, current_time)
+            try:
+                serialized_repo = pickle.dumps(repository)
+                self._redis_client.set(
+                    cache_key, serialized_repo, ex=self._cache_ttl
+                )
+                logger.info(
+                    f"Successfully fetched and cached repository: {repository.full_name}"
+                )
+            except (pickle.PicklingError, TypeError) as e:
+                logger.error(f"Failed to serialize and cache repository {full_name}: {e}")
 
-            # Update rate limit info less frequently
-            if (
-                self._rate_limit_remaining is None or current_time % 30 < 1
-            ):  # Every 30 seconds
-                self._update_rate_limit_info()
+            # Update rate limit info
+            self._update_rate_limit_info()
 
-            logger.info(
-                f"Successfully fetched and cached repository: {repository.full_name}"
-            )
             return repository
 
         except GithubException as e:

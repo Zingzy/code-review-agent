@@ -51,6 +51,7 @@ ttl_analysis_results = 86400  # 24 hours
 ttl_pr_data = 3600  # 1 hour
 ttl_github_user_data = 7200  # 2 hours
 max_cache_size_mb = 512
+github_repo_ttl = 300  # 5 minutes
 
 [security]
 api_key_header = "X-API-Key"
