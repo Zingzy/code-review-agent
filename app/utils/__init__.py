@@ -7,9 +7,7 @@ from .exceptions import (
     TaskNotCompletedException,
     InvalidRepositoryException,
     GitHubAPIException,
-    AnalysisException,
     RateLimitExceededException,
-    DatabaseException,
     setup_exception_handlers,
 )
 
@@ -20,8 +18,6 @@ __all__ = [
     "TaskNotCompletedException",
     "InvalidRepositoryException",
     "GitHubAPIException",
-    "AnalysisException",
     "RateLimitExceededException",
-    "DatabaseException",
     "setup_exception_handlers",
 ]

@@ -1,7 +1,5 @@
 """
 GitHub API Integration Service
-
-Provides methods to interact with GitHub API for fetching PR data, diffs, and file contents.
 """
 
 import os
@@ -59,6 +57,10 @@ class GitHubService:
         # Track rate limit info
         self._rate_limit_remaining: Optional[int] = None
         self._rate_limit_reset: Optional[datetime] = None
+
+        # Repository cache to avoid redundant API calls
+        self._repo_cache = {}
+        self._cache_ttl = 300  # 5 minutes cache TTL
 
     def _get_github_token(self, provided_token: Optional[str]) -> Optional[str]:
         """Get GitHub token from various sources."""
@@ -123,8 +125,35 @@ class GitHubService:
         """Update internal rate limit information."""
         try:
             rate_limit = self._github.get_rate_limit()
-            self._rate_limit_remaining = rate_limit.core.remaining
-            self._rate_limit_reset = rate_limit.core.reset
+
+            logger.debug(
+                f"Rate limit object type: {type(rate_limit)}, attributes: {dir(rate_limit)}"
+            )
+
+            # Handle different PyGithub versions and rate limit object structures
+            if hasattr(rate_limit, "core"):
+                # Newer PyGithub versions
+                core_limit = rate_limit.core
+                self._rate_limit_remaining = core_limit.remaining
+                self._rate_limit_reset = core_limit.reset
+                logger.debug(
+                    f"Used core rate limit: {self._rate_limit_remaining} remaining"
+                )
+            elif hasattr(rate_limit, "rate"):
+                # Try rate attribute
+                rate_info = rate_limit.rate
+                self._rate_limit_remaining = rate_info.remaining
+                self._rate_limit_reset = rate_info.reset
+                logger.debug(
+                    f"Used rate attribute: {self._rate_limit_remaining} remaining"
+                )
+            else:
+                logger.warning(
+                    f"Unknown rate limit structure, attributes: {dir(rate_limit)}"
+                )
+                # Set conservative defaults
+                self._rate_limit_remaining = 1000
+                self._rate_limit_reset = None
 
             logger.debug(
                 f"GitHub rate limit: {self._rate_limit_remaining} requests remaining, "
@@ -139,6 +168,9 @@ class GitHubService:
 
         except Exception as e:
             logger.warning(f"Failed to check GitHub rate limit: {e}")
+            # Set defaults to avoid breaking the service
+            self._rate_limit_remaining = 1000  # Conservative default
+            self._rate_limit_reset = None
 
     def _handle_github_exception(self, e: GithubException, operation: str) -> None:
         """
@@ -200,7 +232,7 @@ class GitHubService:
 
     def get_repository(self, repo_url: str) -> Repository:
         """
-        Get GitHub repository object.
+        Get GitHub repository object with caching.
 
         Args:
             repo_url: GitHub repository URL
@@ -212,17 +244,51 @@ class GitHubService:
             InvalidRepositoryException: If repository URL is invalid
             GitHubAPIException: If API request fails
         """
+        import time
+
         try:
             owner, repo_name = self._parse_repo_url(repo_url)
+            full_name = f"{owner}/{repo_name}"
+            cache_key = f"repo:{full_name}"
+            current_time = time.time()
 
-            logger.debug(f"Fetching repository: {owner}/{repo_name}")
+            logger.debug(f"Repository request for {full_name}, cache key: {cache_key}")
+            logger.debug(f"Current cache keys: {list(self._repo_cache.keys())}")
 
-            repository = self._github.get_repo(f"{owner}/{repo_name}")
+            # Check cache first
+            if cache_key in self._repo_cache:
+                cached_repo, cache_time = self._repo_cache[cache_key]
+                cache_age = current_time - cache_time
+                logger.debug(
+                    f"Found cached repository {full_name}, age: {cache_age:.1f}s, TTL: {self._cache_ttl}s"
+                )
 
-            # Update rate limit info
-            self._update_rate_limit_info()
+                if current_time - cache_time < self._cache_ttl:
+                    logger.info(
+                        f"Using cached repository: {full_name} (age: {cache_age:.1f}s)"
+                    )
+                    return cached_repo
+                else:
+                    # Cache expired, remove it
+                    logger.debug(f"Cache expired for {full_name}, removing")
+                    del self._repo_cache[cache_key]
 
-            logger.info(f"Successfully fetched repository: {repository.full_name}")
+            logger.info(f"Fetching repository from GitHub API: {full_name}")
+
+            repository = self._github.get_repo(full_name)
+
+            # Cache the repository
+            self._repo_cache[cache_key] = (repository, current_time)
+
+            # Update rate limit info less frequently
+            if (
+                self._rate_limit_remaining is None or current_time % 30 < 1
+            ):  # Every 30 seconds
+                self._update_rate_limit_info()
+
+            logger.info(
+                f"Successfully fetched and cached repository: {repository.full_name}"
+            )
             return repository
 
         except GithubException as e:
@@ -518,103 +584,6 @@ class GitHubService:
                     "commit_sha": commit_sha,
                 },
             )
-
-    def get_pull_request_diff(self, repo_url: str, pr_number: int) -> Dict[str, Any]:
-        """
-        Get the complete diff for a pull request.
-
-        Args:
-            repo_url: GitHub repository URL
-            pr_number: Pull request number
-
-        Returns:
-            Dictionary containing diff data and metadata
-        """
-        try:
-            repository = self.get_repository(repo_url)
-            pull_request = repository.get_pull(pr_number)
-
-            # Get the comparison between base and head
-            comparison = repository.compare(
-                pull_request.base.sha, pull_request.head.sha
-            )
-
-            diff_data = {
-                "base_commit": {
-                    "sha": pull_request.base.sha,
-                    "ref": pull_request.base.ref,
-                },
-                "head_commit": {
-                    "sha": pull_request.head.sha,
-                    "ref": pull_request.head.ref,
-                },
-                "stats": {
-                    "ahead_by": comparison.ahead_by,
-                    "behind_by": comparison.behind_by,
-                    "total_commits": comparison.total_commits,
-                },
-                "commits": [],
-            }
-
-            # Get commit information
-            for commit in comparison.commits:
-                commit_data = {
-                    "sha": commit.sha,
-                    "message": commit.commit.message,
-                    "author": {
-                        "name": commit.commit.author.name,
-                        "email": commit.commit.author.email,
-                        "date": commit.commit.author.date.isoformat(),
-                    },
-                    "stats": {
-                        "additions": commit.stats.additions,
-                        "deletions": commit.stats.deletions,
-                        "total": commit.stats.total,
-                    },
-                }
-                diff_data["commits"].append(commit_data)
-
-            logger.info(
-                f"Retrieved diff for PR #{pr_number}: {comparison.total_commits} commits, "
-                f"ahead by {comparison.ahead_by}"
-            )
-
-            return diff_data
-
-        except GithubException as e:
-            self._handle_github_exception(e, f"fetching diff for PR #{pr_number}")
-        except (InvalidRepositoryException, GitHubAPIException):
-            raise
-        except Exception as e:
-            raise GitHubAPIException(
-                f"Failed to get PR diff for #{pr_number}: {str(e)}",
-                details={"repo_url": repo_url, "pr_number": pr_number},
-            )
-
-    def get_rate_limit_info(self) -> Dict[str, Any]:
-        """
-        Get current GitHub API rate limit information.
-
-        Returns:
-            Dictionary with rate limit information
-        """
-        try:
-            rate_limit = self._github.get_rate_limit()
-            return {
-                "core": {
-                    "limit": rate_limit.core.limit,
-                    "remaining": rate_limit.core.remaining,
-                    "reset": rate_limit.core.reset.isoformat(),
-                },
-                "search": {
-                    "limit": rate_limit.search.limit,
-                    "remaining": rate_limit.search.remaining,
-                    "reset": rate_limit.search.reset.isoformat(),
-                },
-            }
-        except Exception as e:
-            logger.error(f"Failed to get rate limit info: {e}")
-            return {"error": str(e)}
 
     @property
     def is_authenticated(self) -> bool:

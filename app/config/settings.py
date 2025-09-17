@@ -76,14 +76,12 @@ class LLMConfig(BaseModel):
     openai_max_tokens: int = 4000
     openai_temperature: float = 0.1
     max_context_length: int = 8192
-    chunk_size: int = 1000
 
 
 class AgentConfig(BaseModel):
     """AI Agent configuration"""
 
     max_analysis_time: int = 300
-    chunk_size: int = 1000
     max_concurrent_analyses: int = 5
     retry_attempts: int = 3
     analysis_languages: List[str] = [
@@ -189,14 +187,3 @@ def reload_settings() -> Settings:
     global _settings
     _settings = None
     return get_settings()
-
-
-if __name__ == "__main__":
-    try:
-        config = get_settings()
-        print("Configuration loaded successfully!")
-        print(f"App Name: {config.app.name}")
-        print(f"API Port: {config.api.port}")
-        print(f"Log Level: {config.app.log_level}")
-    except Exception as e:
-        print(f"Configuration loading failed: {e}")

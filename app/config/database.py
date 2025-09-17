@@ -70,16 +70,6 @@ class DatabaseManager:
 
         logger.info("Database tables created successfully")
 
-    async def drop_tables(self) -> None:
-        """Drop all database tables (use with caution!)"""
-        if not self.engine:
-            raise RuntimeError("Database not initialized")
-
-        async with self.engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.drop_all)
-
-        logger.warning("All database tables dropped")
-
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get async database session with automatic cleanup"""

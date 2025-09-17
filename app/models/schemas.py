@@ -6,7 +6,7 @@ Defines request/response models for the API endpoints.
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -73,13 +73,12 @@ class IssueDetail(BaseModel):
     """Individual code issue detail"""
 
     type: IssueType
-    severity: IssueSeverity
-    line: int = Field(..., gt=0)
-    column: Optional[int] = Field(None, gt=0)
+    severity: IssueSeverity = Field(default=IssueSeverity.LOW)
+    line: int = Field(..., gt=0, description="Line number of the issue")
     description: str = Field(..., min_length=1)
     suggestion: str = Field(..., min_length=1)
     rule: Optional[str] = None
-    confidence: float = Field(..., ge=0.0, le=1.0)
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
 
 
 class FileAnalysisResponse(BaseModel):
@@ -90,9 +89,6 @@ class FileAnalysisResponse(BaseModel):
     language: Optional[str]
     size: int = Field(..., ge=0)
     issues: List[IssueDetail] = []
-    metrics: Dict[str, Any] = {}
-    suggestions: List[str] = []
-    analysis_duration: Optional[float] = Field(None, ge=0.0)
 
 
 class AnalysisSummaryResponse(BaseModel):
@@ -117,9 +113,6 @@ class AnalysisSummaryResponse(BaseModel):
     code_quality_score: float = Field(..., ge=0.0, le=100.0)
     maintainability_score: float = Field(..., ge=0.0, le=100.0)
 
-    # Recommendations
-    overall_recommendations: List[str] = []
-
 
 class AnalysisResponse(BaseModel):
     """Complete analysis response"""
@@ -134,15 +127,6 @@ class AnalysisResponse(BaseModel):
     completed_at: Optional[datetime] = None
     analysis_duration: Optional[float] = Field(None, ge=0.0)
     error_message: Optional[str] = None
-
-
-class HealthResponse(BaseModel):
-    """Health check response"""
-
-    status: str
-    service: str
-    version: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ErrorResponse(BaseModel):
@@ -163,6 +147,5 @@ __all__ = [
     "FileAnalysisResponse",
     "AnalysisSummaryResponse",
     "AnalysisResponse",
-    "HealthResponse",
     "ErrorResponse",
 ]

@@ -2,12 +2,11 @@
 Celery Tasks for Code Analysis
 
 Contains async tasks for processing GitHub PR analysis with real GitHub integration.
-Uses proper asyncio event loop handling for Celery workers.
 """
 
 import asyncio
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from uuid import UUID
 import concurrent.futures
 import os
@@ -16,6 +15,7 @@ from app.tasks.celery_app import celery
 from app.services.github import GitHubService
 from app.utils.language_detection import LanguageDetector
 from app.config.database import get_database_manager
+from app.agents.analyzer import LangGraphAnalyzer
 from app.models.database import (
     AnalysisTask,
     AnalysisResult,
@@ -125,47 +125,42 @@ async def save_analysis_results(
                     file_path=file_path,
                     language=file_analysis.get("language", "unknown"),
                     issues=file_analysis.get("issues", []),
-                    metrics=file_analysis.get("metrics", {}),
-                    suggestions=file_analysis.get("suggestions", []),
                 )
                 session.add(analysis_result)
 
-            # Create task summary
+            # Create task summary with fallbacks from breakdowns
+            summary_in = analysis_results.get("summary", {}) or {}
+            sev = summary_in.get("severity_breakdown", {}) or {}
+            typ = summary_in.get("issue_type_breakdown", {}) or {}
+
             summary = AnalysisSummary(
                 task_id=task_id,
-                total_files=analysis_results.get("summary", {}).get("total_files", 0),
-                total_issues=analysis_results.get("summary", {}).get("total_issues", 0),
-                critical_issues=analysis_results.get("summary", {}).get(
-                    "critical_issues", 0
+                total_files=summary_in.get(
+                    "total_files", summary_in.get("total_files_analyzed", 0)
                 ),
-                high_issues=analysis_results.get("summary", {}).get("high_issues", 0),
-                medium_issues=analysis_results.get("summary", {}).get(
-                    "medium_issues", 0
+                total_issues=summary_in.get("total_issues", 0),
+                critical_issues=summary_in.get(
+                    "critical_issues", sev.get("critical", 0)
                 ),
-                low_issues=analysis_results.get("summary", {}).get("low_issues", 0),
-                style_issues=analysis_results.get("summary", {}).get("style_issues", 0),
-                bug_issues=analysis_results.get("summary", {}).get("bug_issues", 0),
-                performance_issues=analysis_results.get("summary", {}).get(
-                    "performance_issues", 0
+                high_issues=summary_in.get("high_issues", sev.get("high", 0)),
+                medium_issues=summary_in.get("medium_issues", sev.get("medium", 0)),
+                low_issues=summary_in.get("low_issues", sev.get("low", 0)),
+                style_issues=summary_in.get("style_issues", typ.get("quality", 0)),
+                bug_issues=summary_in.get("bug_issues", typ.get("security", 0)),
+                performance_issues=summary_in.get(
+                    "performance_issues", typ.get("performance", 0)
                 ),
-                security_issues=analysis_results.get("summary", {}).get(
-                    "security_issues", 0
+                security_issues=summary_in.get(
+                    "security_issues", typ.get("security", 0)
                 ),
-                maintainability_issues=analysis_results.get("summary", {}).get(
-                    "maintainability_issues", 0
+                maintainability_issues=summary_in.get(
+                    "maintainability_issues", typ.get("maintainability", 0)
                 ),
-                best_practice_issues=analysis_results.get("summary", {}).get(
-                    "best_practice_issues", 0
+                best_practice_issues=summary_in.get("best_practice_issues", 0),
+                code_quality_score=summary_in.get(
+                    "code_quality_score", summary_in.get("overall_score", 0.0)
                 ),
-                code_quality_score=analysis_results.get("summary", {}).get(
-                    "code_quality_score", 0.0
-                ),
-                maintainability_score=analysis_results.get("summary", {}).get(
-                    "maintainability_score", 0.0
-                ),
-                overall_recommendations=analysis_results.get("summary", {}).get(
-                    "overall_recommendations", []
-                ),
+                maintainability_score=summary_in.get("maintainability_score", 0.0),
             )
             session.add(summary)
 
@@ -205,8 +200,11 @@ def analyze_pr_task(
             )
         )
 
-        # Initialize GitHub service
+        # Initialize services
         github_service = GitHubService(github_token)
+        language_detector = LanguageDetector()
+        # Initialize LangGraph analyzer
+        langgraph_analyzer = LangGraphAnalyzer()
 
         # Fetch PR metadata
         self.update_state(
@@ -277,21 +275,25 @@ def analyze_pr_task(
         # Initialize language detector
         language_detector = LanguageDetector()
 
-        # Analyze each file
-        analysis_results = {"files": {}, "summary": {"total_files": file_count}}
+        # Collect file contents for AI analysis
+        files_for_analysis = []
         analyzed_count = 0
+
+        logger.info(f"Processing {file_count} files for analysis")
 
         for i, file_info in enumerate(files):
             file_path = file_info["filename"]
 
+            logger.debug(f"Processing file {i + 1}/{file_count}: {file_path}")
+
             # Update progress
-            progress = 30 + (i / file_count) * 60  # 30-90% for file analysis
+            progress = 30 + (i / file_count) * 50  # 30-80% for file collection
             self.update_state(
                 state="PROGRESS",
                 meta={
                     "current": int(progress),
                     "total": 100,
-                    "status": f"Analyzing {file_path}...",
+                    "status": f"Processing {file_path}...",
                     "task_id": task_id,
                 },
             )
@@ -304,54 +306,116 @@ def analyze_pr_task(
 
                 # Detect language
                 language = language_detector.detect_language_from_filename(file_path)
-                if language == "unknown":
-                    # Try to detect from content if available
-                    try:
-                        file_content = github_service.get_file_content(
-                            repo_url, file_path, pr_metadata["head"]["sha"]
-                        )
+
+                # Get file content
+                try:
+                    file_content_data = github_service.get_file_content(
+                        repo_url, file_path, pr_metadata["head"]["sha"]
+                    )
+
+                    # Extract the actual text content from the response
+                    file_content = (
+                        file_content_data.get("content", "")
+                        if isinstance(file_content_data, dict)
+                        else str(file_content_data)
+                    )
+
+                    # Skip binary files
+                    if not file_content_data.get("is_text", True):
+                        logger.info(f"Skipping binary file: {file_path}")
+                        continue
+
+                    # Try to detect language from content if still unknown
+                    if language == "unknown" and file_content:
                         language = language_detector.detect_language_from_content(
                             file_content
                         )
-                    except Exception as e:
-                        logger.warning(f"Could not fetch content for {file_path}: {e}")
-                        file_content = ""
 
-                # Analyze file (placeholder implementation)
-                file_analysis = analyze_single_file(
-                    file_path,
-                    file_info,
-                    language,
-                    file_content if "file_content" in locals() else "",
+                except Exception as e:
+                    logger.warning(f"Could not fetch content for {file_path}: {e}")
+                    file_content = ""
+                    # Skip files we can't read
+                    continue
+
+                # Add to analysis list
+                files_for_analysis.append(
+                    {
+                        "filename": file_path,
+                        "language": language,
+                        "content": file_content,
+                        "additions": file_info.get("additions", 0),
+                        "deletions": file_info.get("deletions", 0),
+                        "changes": file_info.get("changes", 0),
+                    }
                 )
-                analysis_results["files"][file_path] = file_analysis
                 analyzed_count += 1
 
             except Exception as e:
-                logger.error(f"Error analyzing file {file_path}: {e}")
-                analysis_results["files"][file_path] = {
-                    "language": "unknown",
-                    "issues": [],
-                    "metrics": {},
-                    "suggestions": [],
-                    "error": str(e),
-                }
+                logger.error(f"Error processing file {file_path}: {e}")
 
-        # Update progress after file analysis
+        # Run LangGraph analysis
         run_async_in_celery(
             update_task_status(
-                task_uuid, TaskStatus.PROCESSING, 90.0, "Generating summary..."
+                task_uuid, TaskStatus.PROCESSING, 80.0, "Running AI analysis..."
             )
         )
 
-        # Generate summary
-        summary = generate_analysis_summary(analysis_results["files"])
-        analysis_results["summary"].update(summary)
-        analysis_results["summary"]["files_analyzed"] = analyzed_count
+        self.update_state(
+            state="PROGRESS",
+            meta={
+                "current": 85,
+                "total": 100,
+                "status": "Running AI analysis...",
+                "task_id": task_id,
+            },
+        )
+
+        try:
+            analysis_results = run_async_in_celery(
+                langgraph_analyzer.analyze_pr(pr_metadata, files_for_analysis)
+            )
+
+            # Check if the analysis returned an error result
+            if analysis_results.get("analysis_type") == "langgraph_analysis_error":
+                error_msg = f"Analysis failed: {analysis_results.get('context', {}).get('global_issues', ['Unknown error'])[0]}"
+                logger.error(f"LangGraph analysis returned error result: {error_msg}")
+
+                # Mark task as failed with proper error message
+                run_async_in_celery(
+                    update_task_status(task_uuid, TaskStatus.FAILED, 0.0, error_msg)
+                )
+                return {"error": error_msg, "task_id": task_id}
+            else:
+                logger.info("LangGraph analysis completed successfully")
+
+        except Exception as e:
+            error_msg = f"Analysis engine failed: {str(e)}"
+            logger.error(f"LangGraph analysis failed: {e}", exc_info=True)
+
+            # Mark task as failed with proper error message
+            run_async_in_celery(
+                update_task_status(task_uuid, TaskStatus.FAILED, 0.0, error_msg)
+            )
+            return {"error": error_msg, "task_id": task_id}
+
+        # Update progress after analysis
+        run_async_in_celery(
+            update_task_status(
+                task_uuid, TaskStatus.PROCESSING, 90.0, "Saving results..."
+            )
+        )
+
+        # Extract summary from analysis results
+        summary = analysis_results.get("summary", {})
+        summary["total_files"] = file_count
+        summary["files_analyzed"] = analyzed_count
 
         # Save results to database
+        database_results = adapt_analysis_results_for_database(
+            analysis_results, files_for_analysis
+        )
         run_async_in_celery(
-            save_analysis_results(task_uuid, analysis_results, pr_metadata)
+            save_analysis_results(task_uuid, database_results, pr_metadata)
         )
 
         # Mark task as completed
@@ -365,8 +429,11 @@ def analyze_pr_task(
         return {
             "task_id": task_id,
             "status": "completed",
-            "summary": analysis_results["summary"],
+            "summary": summary,
             "files_analyzed": analyzed_count,
+            "analysis_type": analysis_results.get(
+                "analysis_type", "langgraph_analysis"
+            ),
         }
 
     except (
@@ -396,95 +463,37 @@ def analyze_pr_task(
         raise exc  # Re-raise for Celery to handle
 
 
-def analyze_single_file(
-    file_path: str, file_info: Dict[str, Any], language: str, content: str = ""
+# Removed misleading generate_basic_analysis function
+# When analysis fails, we now properly mark the task as failed
+# instead of generating fake analysis results
+
+
+def adapt_analysis_results_for_database(
+    analysis_results: Dict[str, Any], files_data: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
-    Analyze a single file (placeholder implementation).
+    Adapt analysis results to database format.
 
     Args:
-        file_path: Path to the file
-        file_info: File information from GitHub
-        language: Detected language
-        content: File content (optional)
+        analysis_results: Results from analysis
+        files_data: Original files data
 
     Returns:
-        dict: Analysis results for the file
+        dict: Database-compatible results
     """
-    # Placeholder implementation
-    # In a real implementation, this would use AI/static analysis tools
+    # Build file-based results from LangGraph output structure
+    files_analysis: Dict[str, Any] = {}
 
-    issues = []
-    metrics = {
-        "lines_added": file_info.get("additions", 0),
-        "lines_removed": file_info.get("deletions", 0),
-        "changes": file_info.get("changes", 0),
-    }
-    suggestions = []
+    file_analyses = analysis_results.get("file_analyses", [])
 
-    # Simple heuristic-based analysis
-    if language in ["python", "javascript", "typescript"]:
-        # Check for large files
-        if metrics["lines_added"] > 100:
-            issues.append(
-                {
-                    "type": "maintainability",
-                    "severity": "medium",
-                    "line": 1,
-                    "message": "Large file changes detected. Consider breaking into smaller commits.",
-                    "description": f"This file has {metrics['lines_added']} lines added, which is quite large for a single change.",
-                }
-            )
+    for fa in file_analyses:
+        path = fa.get("file_path") or fa.get("file", "")
+        language = fa.get("language", "unknown")
 
-        # Check for potential security issues (very basic)
-        if content and any(
-            keyword in content.lower()
-            for keyword in ["password", "secret", "key", "token"]
-        ):
-            issues.append(
-                {
-                    "type": "security",
-                    "severity": "high",
-                    "line": 1,
-                    "message": "Potential hardcoded secrets detected",
-                    "description": "This file contains keywords that might indicate hardcoded secrets.",
-                }
-            )
+        raw_issues = fa.get("issues", [])
 
-    return {
-        "language": language,
-        "issues": issues,
-        "metrics": metrics,
-        "suggestions": suggestions,
-    }
-
-
-def generate_analysis_summary(files_analysis: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate summary statistics from file analysis results.
-
-    Args:
-        files_analysis: Dictionary of file analysis results
-
-    Returns:
-        dict: Summary statistics
-    """
-    total_issues = 0
-    issues_by_severity = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-
-    for file_analysis in files_analysis.values():
-        file_issues = file_analysis.get("issues", [])
-        total_issues += len(file_issues)
-
-        for issue in file_issues:
-            severity = issue.get("severity", "low")
-            if severity in issues_by_severity:
-                issues_by_severity[severity] += 1
-
-    return {
-        "total_issues": total_issues,
-        "critical_issues": issues_by_severity["critical"],
-        "high_issues": issues_by_severity["high"],
-        "medium_issues": issues_by_severity["medium"],
-        "low_issues": issues_by_severity["low"],
-    }
+        files_analysis[path] = {
+            "language": language,
+            "issues": raw_issues,
+        }  # Create database format
+    return {"files": files_analysis, "summary": analysis_results.get("summary", {})}

@@ -89,38 +89,6 @@ class GitHubAPIException(CodeReviewerException):
         )
 
 
-class AnalysisException(CodeReviewerException):
-    """Raised when code analysis fails."""
-
-    def __init__(self, message: str, analysis_type: str = None, details: dict = None):
-        full_message = f"Analysis failed: {message}"
-        if analysis_type:
-            full_message = f"{analysis_type} analysis failed: {message}"
-
-        super().__init__(
-            message=full_message,
-            error_code="ANALYSIS_ERROR",
-            details=details,
-            status_code=500,
-        )
-
-
-class DatabaseException(CodeReviewerException):
-    """Raised when database operations fail."""
-
-    def __init__(self, message: str, operation: str = None, details: dict = None):
-        full_message = f"Database error: {message}"
-        if operation:
-            full_message = f"Database {operation} failed: {message}"
-
-        super().__init__(
-            message=full_message,
-            error_code="DATABASE_ERROR",
-            details=details,
-            status_code=500,
-        )
-
-
 class RateLimitExceededException(CodeReviewerException):
     """Raised when API rate limits are exceeded."""
 
@@ -318,8 +286,6 @@ __all__ = [
     "TaskNotCompletedException",
     "InvalidRepositoryException",
     "GitHubAPIException",
-    "AnalysisException",
-    "DatabaseException",
     "RateLimitExceededException",
     # Exception handlers
     "setup_exception_handlers",

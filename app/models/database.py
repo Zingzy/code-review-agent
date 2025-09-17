@@ -104,10 +104,6 @@ class AnalysisResult(SQLModel, table=True):
 
     # Analysis results (JSON fields)
     issues: List[Dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
-    metrics: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    suggestions: List[Dict[str, Any]] = Field(
-        default_factory=list, sa_column=Column(JSON)
-    )
 
     # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now())
@@ -144,11 +140,6 @@ class AnalysisSummary(SQLModel, table=True):
     # Overall metrics
     code_quality_score: float = Field(default=0.0, ge=0.0, le=100.0)
     maintainability_score: float = Field(default=0.0, ge=0.0, le=100.0)
-
-    # Recommendations (JSON field)
-    overall_recommendations: List[str] = Field(
-        default_factory=list, sa_column=Column(JSON)
-    )
 
     # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now())

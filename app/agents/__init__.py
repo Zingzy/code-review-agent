@@ -1,3 +1,6 @@
-"""AI Agents Package"""
+"""
+LangGraph-based Code Analysis Agents
 
-# CrewAI agents and tools
+Clean, deterministic code analysis using LangGraph workflows.
+Provides precise line-by-line analysis with actionable fixes.
+"""

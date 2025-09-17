@@ -20,34 +20,27 @@ from app.models.schemas import (
     IssueDetail,
     ErrorResponse,
 )
-from app.models.database import AnalysisTask
+from app.models.database import AnalysisTask, IssueType, IssueSeverity
 from app.utils.logger import logger
 
 router = APIRouter()
 
 
 def _convert_issues_to_details(issues_data: list, task_id: UUID) -> list[IssueDetail]:
-    """Convert raw issue data to IssueDetail objects."""
+    """Convert database issue data to IssueDetail objects."""
     issues = []
     for issue_data in issues_data:
-        try:
-            issue = IssueDetail(**issue_data)
-            issues.append(issue)
-        except Exception as e:
-            logger.warning(f"Invalid issue format in task {task_id}: {e}")
-            continue
+        issue = IssueDetail(
+            type=IssueType(issue_data.get("type", "style")),
+            severity=IssueSeverity(issue_data.get("severity", "low")),
+            line=issue_data.get("line", 1),
+            description=issue_data.get("description", "No description"),
+            suggestion=issue_data.get("suggestion", "No suggestion"),
+            rule=issue_data.get("rule"),
+            confidence=issue_data.get("confidence", 0.8),
+        )
+        issues.append(issue)
     return issues
-
-
-def _convert_suggestions_to_strings(suggestions_data: list) -> list[str]:
-    """Convert suggestion data to simple string list."""
-    suggestions = []
-    for suggestion in suggestions_data:
-        if isinstance(suggestion, dict) and "text" in suggestion:
-            suggestions.append(suggestion["text"])
-        elif isinstance(suggestion, str):
-            suggestions.append(suggestion)
-    return suggestions
 
 
 def _convert_file_results(task_results, task_id: UUID) -> list[FileAnalysisResponse]:
@@ -55,18 +48,14 @@ def _convert_file_results(task_results, task_id: UUID) -> list[FileAnalysisRespo
     file_results = []
     for result in task_results:
         issues = _convert_issues_to_details(result.issues, task_id)
-        suggestions = _convert_suggestions_to_strings(result.suggestions)
 
         file_results.append(
             FileAnalysisResponse(
                 name=result.file_name,
                 path=result.file_path,
                 language=result.language,
-                size=result.file_size,
+                size=result.file_size or 0,  # Ensure size is not None
                 issues=issues,
-                metrics=result.metrics,
-                suggestions=suggestions,
-                analysis_duration=result.analysis_duration,
             )
         )
     return file_results
@@ -92,7 +81,6 @@ def _convert_summary_to_response(task_summary) -> AnalysisSummaryResponse:
         best_practice_issues=task_summary.best_practice_issues,
         code_quality_score=task_summary.code_quality_score,
         maintainability_score=task_summary.maintainability_score,
-        overall_recommendations=task_summary.overall_recommendations,
     )
 
 
@@ -166,7 +154,7 @@ async def get_analysis_results(
     Get the complete analysis results for a completed task.
 
     Returns detailed analysis results including file-level analysis,
-    issues found, metrics, and summary information.
+    issues found, and summary information.
     """
     try:
         # Find the task with all related data
