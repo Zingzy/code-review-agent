@@ -5,7 +5,7 @@ Defines request/response models for the API endpoints.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -133,7 +133,7 @@ class ErrorResponse(BaseModel):
 
     error: str
     detail: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Export all schemas

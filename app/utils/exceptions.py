@@ -4,7 +4,7 @@ Application Exceptions and Handlers
 Custom exceptions and FastAPI exception handlers for the Code Reviewer Agent.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -78,8 +78,13 @@ class GitHubAPIException(CodeReviewerException):
         rate_limit_exceeded: bool = False,
         details: dict = None,
     ):
-        # If it's a rate limit, use 429, otherwise use 502 for API errors
-        http_status = 429 if rate_limit_exceeded else 502
+        # Use provided status_code, or default based on rate limit status
+        if status_code is not None:
+            http_status = status_code
+        elif rate_limit_exceeded:
+            http_status = 429
+        else:
+            http_status = 502
 
         super().__init__(
             message=f"GitHub API error: {message}",
@@ -144,7 +149,7 @@ async def code_reviewer_exception_handler(
             "error": exc.message,
             "error_code": exc.error_code,
             "details": exc.details,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         },
         headers=headers if headers else None,
     )
@@ -166,9 +171,8 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": exc.detail,
-            "status_code": exc.status_code,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "detail": exc.detail,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         },
         headers=getattr(exc, "headers", None),
     )
@@ -201,9 +205,8 @@ async def validation_exception_handler(
     return JSONResponse(
         status_code=422,
         content={
-            "error": "Validation failed",
-            "details": errors,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "detail": errors,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         },
     )
 
@@ -226,9 +229,9 @@ async def database_exception_handler(
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Database operation failed",
+            "detail": "Database operation failed",
             "error_code": "DATABASE_ERROR",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         },
     )
 
@@ -250,9 +253,9 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Internal server error",
+            "detail": "Internal server error",
             "error_code": "INTERNAL_ERROR",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         },
     )
 
