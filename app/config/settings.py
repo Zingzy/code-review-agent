@@ -68,14 +68,9 @@ class LLMConfig(BaseModel):
     """LLM configuration"""
 
     provider: str = "ollama"
-    ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "codellama:13b"
-    ollama_timeout: int = 60
+    base_url: Optional[str] = None
+    model: Optional[str] = None
     openai_api_key: str = ""
-    openai_model: str = "gpt-4"
-    openai_max_tokens: int = 4000
-    openai_temperature: float = 0.1
-    max_context_length: int = 8192
 
 
 class AgentConfig(BaseModel):

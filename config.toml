@@ -33,18 +33,11 @@ max_files_per_pr = 50
 max_file_size_kb = 1024  # 1MB
 
 [llm]
-provider = "ollama"  # or "openai"
-ollama_url = "http://localhost:11434"
-ollama_model = "codellama:13b"
-ollama_timeout = 60
-# OpenAI settings
+provider = "openai"
+base_url = "https://text.pollinations.ai/openai"
+model = "openai"
 openai_api_key = "$OPENAI_API_KEY"
-openai_model = "gpt-4"
-openai_max_tokens = 4000
-openai_temperature = 0.1
-# General LLM settings
-max_context_length = 8192
-chunk_size = 1000
+
 
 [agent]
 max_analysis_time = 300  # 5 minutes

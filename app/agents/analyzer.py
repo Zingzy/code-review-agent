@@ -6,7 +6,7 @@ using LangGraph workflow and specialized Python analysis tools.
 """
 
 from typing import Dict, Any, List
-from app.agents.ai_workflow import PythonCodeAnalysisWorkflow
+from app.agents.intelligent_workflow import IntelligentWorkflow
 from app.utils.logger import logger
 
 
@@ -14,7 +14,7 @@ class LangGraphAnalyzer:
     """
     AI-driven analyzer for Python code.
 
-    Uses LangGraph workflow where AI agents make decisions about:
+    Uses a LangGraph workflow where an AI agent makes decisions about:
     - Which files to analyze
     - What types of analysis to perform
     - How to prioritize and present findings
@@ -22,41 +22,37 @@ class LangGraphAnalyzer:
 
     def __init__(self):
         """Initialize the AI-driven analyzer."""
-        self.workflow = PythonCodeAnalysisWorkflow()
-        logger.info("AI-driven Python analyzer initialized")
+        self.workflow = IntelligentWorkflow()
+        logger.info("AI-driven analyzer initialized")
 
     async def analyze_pr(
         self, pr_data: Dict[str, Any], files_data: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
-        Analyze a pull request using AI-driven workflow.
+        Analyze a pull request using, AI-driven workflow.
 
         Args:
-            pr_data: Pull request metadata from GitHub
-            files_data: List of changed files with content and metadata
+            pr_data: Pull request metadata from GitHub.
+            files_data: List of changed files with content and metadata.
 
         Returns:
-            Analysis results in the expected format
+            A dictionary containing the analysis results.
         """
-        logger.info(f"Starting AI analysis for PR: {pr_data.get('title', 'Unknown')}")
+        logger.info(
+            f"Starting AI agent analysis for PR: {pr_data.get('title', 'Unknown')}"
+        )
 
         try:
-            # Filter to Python files only
-            python_files = [
-                f for f in files_data if f.get("filename", "").endswith(".py")
-            ]
+            # The workflow will handle file filtering internally
+            results = await self.workflow.run(pr_data, files_data)
 
-            if not python_files:
-                return self._create_empty_analysis(pr_data, "No Python files found")
-
-            # Run AI workflow
-            results = await self.workflow.analyze_pr(pr_data, python_files)
-
-            logger.info(f"AI analysis completed for {len(python_files)} Python files")
+            logger.info(
+                f"AI analysis completed for PR: {pr_data.get('title', 'Unknown')}"
+            )
             return results
 
         except Exception as e:
-            logger.error(f"AI analysis failed: {e}", exc_info=True)
+            logger.error(f"AI analysis workflow failed: {e}", exc_info=True)
             return self._create_error_analysis(pr_data, str(e))
 
     def _create_empty_analysis(

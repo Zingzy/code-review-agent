@@ -376,9 +376,11 @@ def analyze_pr_task(
             )
 
             # Check if the analysis returned an error result
-            if analysis_results.get("analysis_type") == "langgraph_analysis_error":
-                error_msg = f"Analysis failed: {analysis_results.get('context', {}).get('global_issues', ['Unknown error'])[0]}"
-                logger.error(f"LangGraph analysis returned error result: {error_msg}")
+            if analysis_results.get("status") == "failed":
+                error_msg = (
+                    f"Analysis failed: {analysis_results.get('error', 'Unknown error')}"
+                )
+                logger.error(f"Intelligent analysis returned error result: {error_msg}")
 
                 # Mark task as failed with proper error message
                 run_async_in_celery(
@@ -386,7 +388,7 @@ def analyze_pr_task(
                 )
                 return {"error": error_msg, "task_id": task_id}
             else:
-                logger.info("LangGraph analysis completed successfully")
+                logger.info("Intelligent analysis completed successfully")
 
         except Exception as e:
             error_msg = f"Analysis engine failed: {str(e)}"
@@ -472,28 +474,18 @@ def adapt_analysis_results_for_database(
     analysis_results: Dict[str, Any], files_data: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
-    Adapt analysis results to database format.
+    Adapt analysis results from the intelligent workflow to the database format.
 
     Args:
-        analysis_results: Results from analysis
-        files_data: Original files data
+        analysis_results: Results from the intelligent workflow.
+        files_data: Original files data (not used in this adapter but kept for signature consistency).
 
     Returns:
-        dict: Database-compatible results
+        A dictionary with 'files' and 'summary' keys, formatted for database saving.
     """
-    # Build file-based results from LangGraph output structure
-    files_analysis: Dict[str, Any] = {}
-
-    file_analyses = analysis_results.get("file_analyses", [])
-
-    for fa in file_analyses:
-        path = fa.get("file_path") or fa.get("file", "")
-        language = fa.get("language", "unknown")
-
-        raw_issues = fa.get("issues", [])
-
-        files_analysis[path] = {
-            "language": language,
-            "issues": raw_issues,
-        }  # Create database format
-    return {"files": files_analysis, "summary": analysis_results.get("summary", {})}
+    # The new workflow already returns data in a compatible format.
+    # This function now primarily acts as a pass-through and validation step.
+    return {
+        "files": analysis_results.get("files", {}),
+        "summary": analysis_results.get("summary", {}),
+    }
