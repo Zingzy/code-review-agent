@@ -5,11 +5,12 @@ This module defines a sophisticated LangGraph workflow where an AI agent
 makes intelligent decisions about how to analyze a pull request.
 """
 
-from typing import Dict, Any, List, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from app.agents.tools.ai_tools import ai_code_analyzer_tool
+from app.agents.tools.ai_tools import analyze_code_with_ai
+from app.services.llm_service import LLMService
 from app.utils.logger import logger
 
 
@@ -31,6 +32,7 @@ class IntelligentAnalysisState(TypedDict):
     current_file_path: Optional[str]
     analysis_results: List[FileAnalysis]
     final_summary: Dict[str, Any]
+    llm_service: LLMService
 
 
 class IntelligentWorkflow:
@@ -40,7 +42,7 @@ class IntelligentWorkflow:
 
     def __init__(self):
         self.graph = self._build_graph()
-        logger.info("Intelligent AI analysis workflow initialized")
+        logger.info("AI Agent analysis workflow initialized")
 
     def _build_graph(self) -> StateGraph:
         """
@@ -74,6 +76,8 @@ class IntelligentWorkflow:
         """
         Run the intelligent analysis workflow.
         """
+        llm_service = LLMService()
+
         initial_state: IntelligentAnalysisState = {
             "pr_data": pr_data,
             "files_data": files_data,
@@ -81,6 +85,7 @@ class IntelligentWorkflow:
             "current_file_path": None,
             "analysis_results": [],
             "final_summary": {},
+            "llm_service": llm_service,
         }
         final_state = await self.graph.ainvoke(initial_state)
         return self._format_output(final_state)
@@ -123,10 +128,10 @@ class IntelligentWorkflow:
             return state
 
         logger.info(f"AI is analyzing file: {file_path}")
-
         # AI performs a deep analysis using the AI tool
-        issues = await ai_code_analyzer_tool.ainvoke(
-            {"file_path": file_path, "code_content": file_data["content"]}
+        llm_service = state["llm_service"]
+        issues = await analyze_code_with_ai(
+            llm_service, file_path, file_data["content"]
         )
 
         state["analysis_results"].append({"file_path": file_path, "issues": issues})
@@ -182,7 +187,7 @@ class IntelligentWorkflow:
         for file_analysis in final_state.get("analysis_results", []):
             file_path = file_analysis["file_path"]
             formatted_files[file_path] = {
-                "language": "python",  # Assuming python for now
+                "language": "python",
                 "issues": file_analysis["issues"],
             }
 

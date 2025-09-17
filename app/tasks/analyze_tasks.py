@@ -380,7 +380,7 @@ def analyze_pr_task(
                 error_msg = (
                     f"Analysis failed: {analysis_results.get('error', 'Unknown error')}"
                 )
-                logger.error(f"Intelligent analysis returned error result: {error_msg}")
+                logger.error(f"AI Agent analysis returned error result: {error_msg}")
 
                 # Mark task as failed with proper error message
                 run_async_in_celery(
@@ -388,7 +388,7 @@ def analyze_pr_task(
                 )
                 return {"error": error_msg, "task_id": task_id}
             else:
-                logger.info("Intelligent analysis completed successfully")
+                logger.info("AI Agent analysis completed successfully")
 
         except Exception as e:
             error_msg = f"Analysis engine failed: {str(e)}"
@@ -463,11 +463,6 @@ def analyze_pr_task(
         )
 
         raise exc  # Re-raise for Celery to handle
-
-
-# Removed misleading generate_basic_analysis function
-# When analysis fails, we now properly mark the task as failed
-# instead of generating fake analysis results
 
 
 def adapt_analysis_results_for_database(
