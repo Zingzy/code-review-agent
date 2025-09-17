@@ -1,137 +1,263 @@
 # 🤖 Code Reviewer Agent
 
-An **autonomous AI-powered code review agent** that analyzes GitHub Pull Requests using advanced language models and provides comprehensive code quality insights.
+An **autonomous AI-powered code review agent** that analyzes GitHub Pull Requests using advanced language models and provides comprehensive code quality insights through intelligent multi-agent workflows.
 
-[![Tests](https://img.shields.io/badge/tests-75%20passing-green)](.)
-[![Coverage](https://img.shields.io/badge/coverage-41%25-yellow)](.)
 [![Python](https://img.shields.io/badge/python-3.13-blue)](.)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116-green)](.)
+<!-- [![Tests](https://img.shields.io/badge/tests-75%20passing-green)](.)
+[![Coverage](https://img.shields.io/badge/coverage-41%25-yellow)](.) -->
+[![Code Style](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 ## 🚀 Features
 
-- **🧠 AI-Powered Analysis**: Uses OpenAI/Ollama models for intelligent code review
-- **🔄 Async Processing**: Celery-based task queue for scalable analysis
-- **📊 Comprehensive Reports**: Security, performance, style, and maintainability insights  
-- **🐙 GitHub Integration**: Direct PR analysis with GitHub API
-- **🗄️ Persistent Storage**: PostgreSQL database with SQLModel ORM
-- **⚡ Redis Caching**: Fast caching and message brokering
-- **🧪 Test Coverage**: 75+ tests with 41% coverage
-- **📈 REST API**: FastAPI with automatic OpenAPI documentation
+- **🧠 AI-Powered Analysis**: Multi-agent LangGraph workflow with intelligent decision-making
+- **🔄 Async Processing**: Celery-based distributed task queue for scalable analysis
+- **📊 Comprehensive Reports**: Security, performance, style, and maintainability insights
+- **🐙 GitHub Integration**: Seamless GitHub API integration with rate limiting and caching
+- **🗄️ Type-Safe Storage**: PostgreSQL with SQLModel ORM for robust data persistence
+- **⚡ Redis Infrastructure**: High-performance caching and message brokering
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        Client[REST Client]
+        Browser[Web Browser]
+    end
+
+    subgraph "API Gateway"
+        FastAPI[FastAPI Server<br/>• Authentication<br/>• Validation<br/>• Documentation]
+    end
+
+    subgraph "Processing Layer"
+        Celery[Celery Workers<br/>• Task Queue<br/>• Background Processing<br/>• Progress Tracking]
+
+        subgraph "AI Agents"
+            LangGraph[LangGraph Workflow<br/>• Decision Making<br/>• File Prioritization]
+            LLM[LLM Service<br/>• Code Analysis<br/>• Issue Detection]
+        end
+    end
+
+    subgraph "External Services"
+        GitHub[GitHub API<br/>• PR Data<br/>• File Content<br/>• Metadata]
+        OpenAI[OpenAI/Pollinations<br/>• GPT Models<br/>• Code Analysis]
+    end
+
+    subgraph "Data Layer"
+        PostgreSQL[(PostgreSQL<br/>• Task Storage<br/>• Analysis Results<br/>• Audit Logs)]
+        Redis[(Redis<br/>• Message Queue<br/>• Caching<br/>• Session Store)]
+    end
+
+    Client --> FastAPI
+    Browser --> FastAPI
+    FastAPI --> Celery
+    Celery --> LangGraph
+    LangGraph --> LLM
+    LLM --> OpenAI
+    Celery --> GitHub
+    FastAPI --> PostgreSQL
+    Celery --> PostgreSQL
+    FastAPI --> Redis
+    Celery --> Redis
+    LangGraph --> Redis
+
+    classDef api fill:#e1f5fe
+    classDef processing fill:#f3e5f5
+    classDef storage fill:#e8f5e8
+    classDef external fill:#fff3e0
+
+    class FastAPI api
+    class Celery,LangGraph,LLM processing
+    class PostgreSQL,Redis storage
+    class GitHub,OpenAI external
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   FastAPI API   │    │  Celery Worker  │    │   AI Agents     │
-│                 │    │                 │    │                 │
-│ • REST Endpoints│────▶• Async Tasks    │────▶• LangGraph Flow │
-│ • Validation    │    │ • PR Processing │    │ • Code Analysis │
-│ • Error Handling│    │ • Status Updates│    │ • LLM Integration│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostgreSQL    │    │     Redis       │    │  GitHub API     │
-│                 │    │                 │    │                 │
-│ • Task Storage  │    │ • Message Queue │    │ • PR Data       │
-│ • Results Cache │    │ • Result Cache  │    │ • File Content  │
-│ • Analysis Data │    │ • Session Store │    │ • Metadata      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+
+## 🤖 AI Agent Workflow
+
+```mermaid
+graph TD
+    Start([PR Analysis Request]) --> Triage[AI Triage Node<br/>• Examine PR metadata<br/>• Identify critical files<br/>• Set analysis strategy]
+
+    Triage --> FileLoop{Files to Analyze?}
+
+    FileLoop -->|Yes| AnalyzeFile[File Analysis Node<br/>• Deep code analysis<br/>• Issue detection<br/>• LLM integration]
+
+    AnalyzeFile --> UpdateProgress[Update Progress<br/>• Status tracking<br/>• Real-time updates]
+
+    UpdateProgress --> FileLoop
+
+    FileLoop -->|No| Synthesize[Synthesis Node<br/>• Aggregate findings<br/>• Generate summary<br/>• Calculate metrics]
+
+    Synthesize --> SaveResults[Save Results<br/>• Database storage<br/>• Cache updates]
+
+    SaveResults --> Complete([Analysis Complete])
+
+    subgraph "AI Decision Points"
+        Triage
+        AnalyzeFile
+        Synthesize
+    end
+
+    subgraph "Data Operations"
+        UpdateProgress
+        SaveResults
+    end
+
+    classDef ai fill:#e3f2fd
+    classDef data fill:#e8f5e8
+    classDef flow fill:#fff3e0
+
+    class Triage,AnalyzeFile,Synthesize ai
+    class UpdateProgress,SaveResults data
+    class Start,Complete,FileLoop flow
 ```
 
 ## 🛠️ Technology Stack
 
-### **Backend**
-- **FastAPI** - Modern async web framework
-- **SQLModel** - Type-safe database ORM 
-- **Celery** - Distributed task queue
-- **Redis** - Caching and message broker
-- **PostgreSQL** - Primary database
-- **UV** - Fast Python package manager
+### **Backend Framework**
 
-### **AI & Analysis**
-- **LangGraph** - AI workflow orchestration
-- **OpenAI/Ollama** - Language model providers
-- **PyGithub** - GitHub API integration
-- **Custom Tools** - Code analysis utilities
+- **FastAPI** - Modern async web framewor
+- **SQLModel** - Type-safe database ORM combining Pydantic and SQLAlchemy
+- **Celery** - Distributed task queue with Redis broker for async processing
+- **Redis** - High-performance caching and message broker
+- **PostgreSQL** - Robust relational database with JSON support
+- **UV** - Lightning-fast Python package manager and dependency resolver
 
-### **Infrastructure**
-- **Docker Compose** - Local development
-- **Alembic** - Database migrations
-- **Loguru** - Structured logging
-- **Pytest** - Testing framework
+### **AI & Analysis Engine**
+
+- **LangGraph** - Advanced AI workflow orchestration with state management
+- **OpenAI/Pollinations** - Multiple LLM provider support for code analysis
+- **PyGithub** - Comprehensive GitHub API integration with rate limiting
+- **Instructor** - Structured LLM output validation with Pydantic models
+- **Custom Analysis Tools** - Specialized code analysis utilities and detectors
+
+### **Development & Infrastructure**
+
+- **Docker Compose** - Containerized development environment
+- **Alembic** - Database schema migrations with version control
+- **Loguru** - Advanced structured logging with rotation and filtering
+- **Pytest** - Comprehensive testing framework with async support
+- **Ruff** - High-performance Python linting and formatting
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Python 3.13+**
-- **Docker & Docker Compose**
-- **UV** package manager
-- **GitHub Token** (optional)
-- **OpenAI API Key** (optional)
+Ensure you have the following installed on your system:
 
-### 1. Clone & Setup
+- **Python 3.13+**
+- **Docker & Docker Compose** (For infrastructure services)
+- **UV Package Manager**
+- **Git** (For version control)
+
+#### Optional
+
+- **GitHub Personal Access Token** ([Create here](https://github.com/settings/tokens)) - For private repositories and higher rate limits
+- **OpenAI API Key** ([Get yours here](https://platform.openai.com/api-keys)) - For using GPT instead of pollinations.ai
+
+### 1. Clone & Environment Setup
 
 ```bash
-git clone <your-repo-url>
-cd code_reviewer_agent
+# Clone the repository
+git clone https://github.com/zingzy/code-review-agent.git
+cd code-review-agent
 
-# Install dependencies
+# Install all dependencies with UV
 uv sync
 
-# Copy environment template
+# Copy environment template and configure
 cp .env.example .env
 ```
 
-### 2. Configure Environment
+### 2. Environment Configuration
 
-Edit `.env` file:
+Edit your `.env` file with appropriate values:
 
-```bash
-# Database
+```env
+# Database Configuration (Docker services)
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/code_review
 REDIS_URL=redis://localhost:6379/0
 
-# Optional: GitHub Integration
-GITHUB_TOKEN=your_github_token_here
+# Celery Task Queue
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
 
-# Optional: AI Analysis
-OPENAI_API_KEY=your_openai_api_key_here
+# GitHub Integration (Optional but recommended)
+GITHUB_TOKEN=ghp_your_github_token_here
 
-# Security
-SECRET_KEY=your-secret-key-here
+# AI Analysis (Choose your provider)
+OPENAI_API_KEY=sk-your_openai_api_key_here
+
+# Security (Generate secure keys)
+SECRET_KEY=your-secure-secret-key-here
+API_KEY=your-api-authentication-key
+
+# Environment
+ENVIRONMENT=development  # development, staging, production
 ```
 
-### 3. Start Services
+#### 🔐 Security Key Generation
+
+Generate secure keys for production:
 
 ```bash
-# Start infrastructure
-docker-compose up -d
+# Generate SECRET_KEY
+python -c "import secrets; print(f'SECRET_KEY={secrets.token_urlsafe(32)}')"
 
-# Run database migrations
+# Generate API_KEY
+python -c "import secrets; print(f'API_KEY={secrets.token_urlsafe(16)}')"
+```
+
+### 3. Infrastructure Services
+
+Start the required infrastructure services:
+
+```bash
+# Start whole infra
+docker-compose up
+
+# Verify services are running
+docker-compose ps
+```
+
+Wait for services to be healthy, then run database migrations:
+
+```bash
+# Initialize database schema
 uv run alembic upgrade head
-
-# Start FastAPI server
-uv run uvicorn app.main:app --reload
-
-# Start Celery worker (new terminal)
-uv run celery -A app.tasks.celery_app worker --loglevel=info
 ```
 
-### 4. Test the API
+## Test the API
 
-```bash
-# Health check
-curl http://localhost:8000/health
+### Submit PR Analysis
 
-# View API documentation
-open http://localhost:8000/docs
+**POST** `/api/v1/analyze-pr`
+
+Submit a GitHub Pull Request for comprehensive analysis.
+
+**Request Body:**
+
+```json
+{
+  "repo_url": "https://github.com/owner/repository",
+  "pr_number": 123,
+  "github_token": "ghp_optional_token_for_private_repos"
+}
 ```
 
-## 📖 API Usage
+**Response (202 Accepted):**
 
-### Submit PR for Analysis
+```json
+{
+  "task_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "message": "Analysis task queued successfully",
+  "estimated_duration": "2-5 minutes"
+}
+```
+
+**cURL Example:**
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/analyze-pr" \
@@ -143,7 +269,14 @@ curl -X POST "http://localhost:8000/api/v1/analyze-pr" \
   }'
 ```
 
-**Response:**
+### Check Analysis Status
+
+**GET** `/api/v1/status/{task_id}`
+
+Monitor the progress of an analysis task.
+
+**Response Examples:**
+
 ```json
 {
   "task_id": "uuid-task-id",
@@ -152,50 +285,121 @@ curl -X POST "http://localhost:8000/api/v1/analyze-pr" \
 }
 ```
 
-### Check Task Status
+**CURL Example:**
 
 ```bash
 curl "http://localhost:8000/api/v1/status/uuid-task-id"
 ```
 
+### Cancel Analysis Task
+
+**POST** `/api/v1/cancel/{task_id}`
+
+Cancel a running analysis task.
+
+**Response:**
+
+```json
+
+{
+  "task_id": "uuid-task-id",
+  "status": "cancelled",
+  "message": "Task cancelled successfully"
+}
+```
+
+**CURL Example:**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/cancel/uuid-task-id"
+```
+
 ### Get Analysis Results
+
+**GET** `/api/v1/results/{task_id}`
+
+**Response (200 OK):**
+
+```json
+{
+  "task_id": "uuid-task-id",
+  "status": "completed",
+  "progress": 100.0,
+  "files": [
+    {
+      "name": "main.py",
+      "path": "src/main.py",
+      "language": "python",
+      "size": 2048,
+      "issues": [
+        {
+          "type": "security",
+          "severity": "high",
+          "line": 42,
+          "description": "Potential SQL injection vulnerability.",
+          "suggestion": "Use parameterized queries.",
+          "confidence": 0.95
+        }
+      ]
+    }
+  ],
+    "summary": {
+        "total_files": 1,
+        "total_issues": 1,
+        "critical_issues": 0,
+        "high_issues": 1,
+        "medium_issues": 0,
+        "low_issues": 0,
+        "style_issues": 0,
+        "bug_issues": 0,
+        "performance_issues": 0,
+        "security_issues": 0,
+        "maintainability_issues": 0,
+        "best_practice_issues": 0,
+        "code_quality_score": 0.0,
+        "maintainability_score": 0.0
+    },
+    "created_at": "2025-09-17T12:01:17.308745",
+    "started_at": "2025-09-17T12:01:17.940944",
+    "completed_at": "2025-09-17T12:01:40.288990",
+    "analysis_duration": 22.348046,
+    "error_message": null
+}
+```
+
+**CURL Example:**
 
 ```bash
 curl "http://localhost:8000/api/v1/results/uuid-task-id"
 ```
 
-## 🧪 Development
+## 🧪 Development & Testing
 
-### Running Tests
+### Testing Infrastructure
+
+The project maintains a comprehensive test suite with multiple test categories:
 
 ```bash
-# Run all tests
+# Run full test suite
 uv run pytest
 
-# Run with coverage
-uv run pytest --cov=app --cov-report=html
-
-# Run specific test file
-uv run pytest tests/unit/test_models/
-
-# Run integration tests
-uv run pytest tests/integration/
+# Run with coverage reporting
+uv run pytest --cov=app --cov-report=html --cov-report=term-missing
 ```
 
-### Code Quality
+### Code Quality Tools
 
 ```bash
-# Format code
+# Code formatting with Ruff
 uvx ruff format
 
-# Lint code  
+# Linting and style checks
 uvx ruff check
+uvx ruff check --fix      # Auto-fix issues
 
-# Type checking
-uv run mypy app
 ```
 
-### Database Operations
+### Database Testing
 
 ```bash
 # Create migration
@@ -208,9 +412,46 @@ uv run alembic upgrade head
 uv run alembic downgrade -1
 ```
 
+## 🏗️ Design Decisions & Architecture
+
+### Core Technology Choices
+
+#### **UV vs. pip/poetry**
+
+- **Why UV**: 10-100x faster dependency resolution and installation
+- **Benefits**: Unified tool for dependencies, virtual environments, and Python versions
+
+#### **SQLModel vs. SQLAlchemy**
+
+- **Why SQLModel**: Type-safe ORM with Pydantic integration
+- **Benefits**: Automatic API serialization, unified data models
+- **Trade-offs**: Less mature than pure SQLAlchemy
+- **Performance**: Comparable to SQLAlchemy with better developer experience
+
+#### **Celery vs. ARQ/TaskIQ**
+
+- **Current**: Celery for mature ecosystem and Redis integration
+- **Benefits**: Battle-tested, extensive monitoring, complex workflows, task cancellation support
+- **Trade-offs**: Heavier weight, not async-native
+- **Future**: Migration to ARQ planned (see Future Improvements)
+
+#### **LangGraph vs. LangChain**
+
+- **Why LangGraph**: State-based AI workflows
+- **Benefits**: Visual workflow representation, cyclic graph support
+- **Trade-offs**: Newer, smaller ecosystem
+- **Use Case**: Perfect for multi-step code analysis workflows
+
+## 🚀 Future Improvements
+
+- Fully async Task Queue using Arq/TaskIQ
+- Fully async redis client for github repo caching using async-redis
+- Better tools for more robust code analysis
+- Direct Github PR comment bot
+
 ## 📂 Project Structure
 
-```
+```bash
 code_reviewer_agent/
 ├── app/
 │   ├── agents/          # AI workflow logic
@@ -234,41 +475,18 @@ code_reviewer_agent/
 └── docs/               # Documentation
 ```
 
-## ⚙️ Configuration
-
-Configuration is managed via `config.toml` with environment variable substitution:
-
-```toml
-[llm]
-provider = "openai"  # or "ollama"
-model = "gpt-4"
-openai_api_key = "$OPENAI_API_KEY"
-
-[agent]
-max_analysis_time = 300
-analysis_languages = ["python", "javascript", "typescript"]
-
-[github]
-timeout = 30
-max_files_per_pr = 50
-```
-
 ## 🔍 Analysis Features
 
 ### **Code Issues Detected**
+
 - 🔒 **Security vulnerabilities**
 - 🐛 **Potential bugs**
 - ⚡ **Performance problems**
 - 🎨 **Style violations**
 - 🔧 **Maintainability concerns**
 
-### **Supported Languages**
-- Python, JavaScript, TypeScript
-- Java, Go, Rust, C/C++
-- PHP, Ruby, C#, Kotlin
-- And more...
-
 ### **AI Capabilities**
+
 - Context-aware analysis
 - Intelligent prioritization
 - Detailed explanations
@@ -282,7 +500,7 @@ max_files_per_pr = 50
 4. **Push** to the branch (`git push origin feature/amazing-feature`)
 5. **Open** a Pull Request
 
-### Development Guidelines
+### 🛠️ Development Guidelines
 
 - Write tests for new features
 - Follow existing code style
@@ -292,33 +510,10 @@ max_files_per_pr = 50
 ## 📊 Monitoring
 
 ### **Logs**
+
 - Application logs: `logs/app.log`
 - Structured JSON logging with Loguru
 - Configurable log levels
-
-### **Health Checks**
-- API health: `GET /health`
-- Database connectivity
-- Redis connectivity
-- Celery worker status
-
-### **Metrics** (Future)
-- Analysis success rates
-- Processing times
-- Error frequencies
-- API usage statistics
-
-## 🔒 Security
-
-- API key authentication
-- Environment-based secrets
-- Input validation with Pydantic
-- Rate limiting on endpoints
-- Secure GitHub token handling
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -329,13 +524,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Support
+<h6 align="center">
+<img src="https://avatars.githubusercontent.com/u/90309290?v=4" height=30 title="zingzy Copyright">
+<br>
+© zingzy . 2025
 
-- 📖 **Documentation**: Check `/docs` endpoint
-- 🐛 **Issues**: Create GitHub issues
-- 💬 **Discussions**: Use GitHub discussions
-- 📧 **Contact**: [Your contact information]
+All Rights Reserved</h6>
 
----
-
-**Happy coding! 🚀**
+<p align="center">
+	<a href="https://github.com/zingzy/code-review-agent/blob/master/LICENSE"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=License&message=MIT&logoColor=d9e0ee&colorA=363a4f&colorB=b7bdf8"/></a>
