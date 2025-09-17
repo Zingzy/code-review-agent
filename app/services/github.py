@@ -8,7 +8,7 @@ import pickle
 from datetime import datetime
 from typing import Dict, Optional, Tuple, Any
 
-from github import Github, GithubException
+from github import Github, GithubException, Auth
 from github.PullRequest import PullRequest
 from github.Repository import Repository
 
@@ -45,7 +45,7 @@ class GitHubService:
         # Initialize PyGithub client
         if self._token:
             self._github = Github(
-                self._token,
+                auth=Auth.Token(self._token),
                 timeout=self.settings.github.timeout,
                 retry=self.settings.github.max_retries
                 if hasattr(self.settings.github, "max_retries")

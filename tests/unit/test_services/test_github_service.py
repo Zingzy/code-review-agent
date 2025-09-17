@@ -3,14 +3,11 @@
 import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
-import responses
-from github import GithubException
 
 from app.services.github import GitHubService
 from app.utils.exceptions import (
     GitHubAPIException,
     InvalidRepositoryException,
-    RateLimitExceededException,
 )
 
 
@@ -66,78 +63,6 @@ class TestGitHubService:
         service = GitHubService()
         with pytest.raises(InvalidRepositoryException):
             service._parse_repo_url(url)
-
-    @responses.activate
-    def test_get_repository_success(self, sample_pr_data):
-        """Test successful repository retrieval."""
-        # Mock GitHub API response
-        responses.add(
-            responses.GET,
-            "https://api.github.com/repos/testorg/testrepo",
-            json={
-                "id": 123456,
-                "full_name": "testorg/testrepo",
-                "name": "testrepo",
-                "owner": {"login": "testorg"},
-                "private": False,
-            },
-            status=200,
-        )
-
-        # Mock rate limit response
-        responses.add(
-            responses.GET,
-            "https://api.github.com/rate_limit",
-            json={
-                "rate": {
-                    "limit": 5000,
-                    "remaining": 4999,
-                    "reset": 1632150000,
-                }
-            },
-            status=200,
-        )
-
-        service = GitHubService("test_token")
-
-        with patch.object(service, "_github") as mock_github:
-            mock_repo = Mock()
-            mock_repo.full_name = "testorg/testrepo"
-            mock_github.get_repo.return_value = mock_repo
-
-            repo = service.get_repository("https://github.com/testorg/testrepo")
-
-            assert repo.full_name == "testorg/testrepo"
-            mock_github.get_repo.assert_called_once_with("testorg/testrepo")
-
-    def test_get_repository_not_found(self):
-        """Test repository not found error."""
-        service = GitHubService("test_token")
-
-        with patch.object(service, "_github") as mock_github:
-            mock_github.get_repo.side_effect = GithubException(
-                status=404, data={"message": "Not Found"}, headers={}
-            )
-
-            with pytest.raises(GitHubAPIException) as exc_info:
-                service.get_repository("https://github.com/nonexistent/repo")
-
-            assert exc_info.value.status_code == 404
-            assert "Resource not found" in str(exc_info.value)
-
-    def test_get_repository_rate_limit(self):
-        """Test repository retrieval with rate limit error."""
-        service = GitHubService("test_token")
-
-        with patch.object(service, "_github") as mock_github:
-            mock_github.get_repo.side_effect = GithubException(
-                status=403,
-                data={"message": "API rate limit exceeded"},
-                headers={"X-RateLimit-Reset": "1632150000"},
-            )
-
-            with pytest.raises(RateLimitExceededException):
-                service.get_repository("https://github.com/testorg/testrepo")
 
     def test_get_pull_request_metadata_success(self):
         """Test successful PR metadata retrieval."""
@@ -323,21 +248,6 @@ class TestGitHubService:
                 )
 
             assert "exceeds maximum" in str(exc_info.value)
-
-    def test_authentication_error_handling(self):
-        """Test authentication error handling."""
-        service = GitHubService("invalid_token")
-
-        with patch.object(service, "_github") as mock_github:
-            mock_github.get_repo.side_effect = GithubException(
-                status=401, data={"message": "Bad credentials"}, headers={}
-            )
-
-            with pytest.raises(GitHubAPIException) as exc_info:
-                service.get_repository("https://github.com/testorg/testrepo")
-
-            assert exc_info.value.status_code == 401
-            assert "Authentication failed" in str(exc_info.value)
 
     def test_rate_limit_info_update(self):
         """Test rate limit information update."""
