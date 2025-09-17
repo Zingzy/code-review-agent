@@ -77,7 +77,6 @@ class IssueDetail(BaseModel):
     line: int = Field(..., gt=0, description="Line number of the issue")
     description: str = Field(..., min_length=1)
     suggestion: str = Field(..., min_length=1)
-    rule: Optional[str] = None
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
 
 

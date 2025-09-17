@@ -36,7 +36,6 @@ def _convert_issues_to_details(issues_data: list, task_id: UUID) -> list[IssueDe
             line=issue_data.get("line", 1),
             description=issue_data.get("description", "No description"),
             suggestion=issue_data.get("suggestion", "No suggestion"),
-            rule=issue_data.get("rule"),
             confidence=issue_data.get("confidence", 0.8),
         )
         issues.append(issue)
