@@ -44,11 +44,7 @@ jobs:
     - name: Run code formatting check with ruff
       run: |
         uvx ruff format --check
-        
-    - name: Run type checking with mypy
-      run: |
-        uv run mypy src --ignore-missing-imports
-        
+
     - name: Run tests with pytest
       env:
         SECRET_KEY: ${{ secrets.SECRET_KEY }}

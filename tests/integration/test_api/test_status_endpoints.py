@@ -139,7 +139,7 @@ class TestErrorHandling:
         # Test with malformed data and no content-type - should get validation error
         response = client.post(
             "/api/v1/analyze-pr",
-            data='invalid json data',  # Invalid JSON
+            data="invalid json data",  # Invalid JSON
         )
 
         # FastAPI should return 422 for malformed JSON

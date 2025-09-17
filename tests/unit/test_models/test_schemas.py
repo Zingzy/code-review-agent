@@ -53,12 +53,15 @@ class TestAnalysisRequest:
 
         assert "Invalid GitHub repository URL format" in str(exc_info.value)
 
-    @pytest.mark.parametrize("url", [
-        "https://github.com/owner/repo",
-        "https://github.com/owner/repo/", 
-        "https://github.com/user_name/repo-name",
-        "https://github.com/org123/project_name",
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://github.com/owner/repo",
+            "https://github.com/owner/repo/",
+            "https://github.com/user_name/repo-name",
+            "https://github.com/org123/project_name",
+        ],
+    )
     def test_various_valid_repo_urls(self, url):
         """Test various valid repository URL formats."""
         request = AnalysisRequest(repo_url=url, pr_number=1)
