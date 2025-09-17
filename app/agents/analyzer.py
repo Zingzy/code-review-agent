@@ -6,7 +6,7 @@ using LangGraph workflow and specialized Python analysis tools.
 """
 
 from typing import Dict, Any, List
-from app.agents.intelligent_workflow import IntelligentWorkflow
+from app.agents.ai_workflow import AIWorkflow
 from app.utils.logger import logger
 
 
@@ -22,7 +22,7 @@ class LangGraphAnalyzer:
 
     def __init__(self):
         """Initialize the AI-driven analyzer."""
-        self.workflow = IntelligentWorkflow()
+        self.workflow = AIWorkflow()
         logger.info("AI-driven analyzer initialized")
 
     async def analyze_pr(

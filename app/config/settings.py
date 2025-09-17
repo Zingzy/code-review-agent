@@ -49,8 +49,8 @@ class CeleryConfig(BaseModel):
 
     broker_url: str
     result_backend: str
-    task_time_limit: int = 60 * 10  # 10 minutes
-    task_soft_time_limit: int = 60 * 9  # 9 minutes
+    task_time_limit: int = 60 * 20  # 20 minutes
+    task_soft_time_limit: int = 60 * 19  # 19 minutes
     worker_prefetch_multiplier: int = 1
     worker_max_tasks_per_child: int = 1000
 
