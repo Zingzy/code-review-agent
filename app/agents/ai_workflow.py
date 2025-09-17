@@ -90,9 +90,7 @@ class AIWorkflow:
         final_state = await self.graph.ainvoke(initial_state)
         return self._format_output(final_state)
 
-    async def triage_pr_node(
-        self, state: AIAnalysisState
-    ) -> AIAnalysisState:
+    async def triage_pr_node(self, state: AIAnalysisState) -> AIAnalysisState:
         """
         AI agent examines the PR to identify critical files for review.
         """
@@ -108,9 +106,7 @@ class AIWorkflow:
         )
         return state
 
-    async def file_analysis_loop_node(
-        self, state: AIAnalysisState
-    ) -> AIAnalysisState:
+    async def file_analysis_loop_node(self, state: AIAnalysisState) -> AIAnalysisState:
         """
         Analyzes one file at a time, decided by the agent's strategy.
         """
@@ -145,9 +141,7 @@ class AIWorkflow:
             return "continue"
         return "end"
 
-    async def synthesize_report_node(
-        self, state: AIAnalysisState
-    ) -> AIAnalysisState:
+    async def synthesize_report_node(self, state: AIAnalysisState) -> AIAnalysisState:
         """
         Synthesizes all findings into a final report.
         """

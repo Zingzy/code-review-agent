@@ -266,14 +266,14 @@ class GitHubService:
             # Cache the repository
             try:
                 serialized_repo = pickle.dumps(repository)
-                self._redis_client.set(
-                    cache_key, serialized_repo, ex=self._cache_ttl
-                )
+                self._redis_client.set(cache_key, serialized_repo, ex=self._cache_ttl)
                 logger.info(
                     f"Successfully fetched and cached repository: {repository.full_name}"
                 )
             except (pickle.PicklingError, TypeError) as e:
-                logger.error(f"Failed to serialize and cache repository {full_name}: {e}")
+                logger.error(
+                    f"Failed to serialize and cache repository {full_name}: {e}"
+                )
 
             # Update rate limit info
             self._update_rate_limit_info()

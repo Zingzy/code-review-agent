@@ -29,9 +29,7 @@ async def analyze_code_with_ai(
         A list of issues found by the AI model, validated against the required schema.
     """
     analysis_type = "comprehensive"  # Defaulting to comprehensive for now
-    logger.info(
-        f"Executing AI-powered analysis for {file_path}"
-    )
+    logger.info(f"Executing AI-powered analysis for {file_path}")
     try:
         issues = await llm_service.analyze_code(file_path, code_content, analysis_type)
         logger.info(
