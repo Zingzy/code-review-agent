@@ -43,6 +43,7 @@ def run_async_in_celery(coro):
     global _worker_loop
     if _worker_loop is None or _worker_loop.is_closed():
         _worker_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_worker_loop)
     return _worker_loop.run_until_complete(coro)
 
 
