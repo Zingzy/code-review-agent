@@ -60,6 +60,7 @@ class GitHubConfig(BaseModel):
 
     api_url: str = "https://api.github.com"
     timeout: int = 30
+    max_retries: int = 3
     max_files_per_pr: int = 50
     max_file_size_kb: int = 1024
 
