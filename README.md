@@ -293,14 +293,22 @@ curl "http://localhost:8000/api/v1/status/uuid-task-id"
 
 ### Cancel Analysis Task
 
-**POST** `/api/v1/cancel/{task_id}`
+**DELETE** `/api/v1/tasks/{task_id}`
 
-Cancel a running analysis task.
+Cancel a running or pending analysis task. Only tasks in `pending` or
+`processing` status can be cancelled. An optional `reason` may be supplied.
+
+**Request Body (optional):**
+
+```json
+{
+  "reason": "No longer needed"
+}
+```
 
 **Response:**
 
 ```json
-
 {
   "task_id": "uuid-task-id",
   "status": "cancelled",
@@ -311,7 +319,9 @@ Cancel a running analysis task.
 **CURL Example:**
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/cancel/uuid-task-id"
+curl -X DELETE "http://localhost:8000/api/v1/tasks/uuid-task-id" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "No longer needed"}'
 ```
 
 ### Get Analysis Results
@@ -505,7 +515,7 @@ curl "https://code-review.spoo.me/api/v1/results/uuid-task-id"
 #### Cancel Running Task
 
 ```bash
-curl -X POST "https://code-review.spoo.me/api/v1/cancel/uuid-task-id"
+curl -X DELETE "https://code-review.spoo.me/api/v1/tasks/uuid-task-id"
 ```
 
 #### Analyze Your Own PR
