@@ -29,6 +29,7 @@ result_backend = "$CELERY_RESULT_BACKEND"
 [github]
 api_url = "https://api.github.com"
 timeout = 30
+max_retries = 3
 max_files_per_pr = 50
 max_file_size_kb = 1024  # 1MB
 

@@ -5,6 +5,7 @@ GitHub API Integration Service
 import os
 import re
 import pickle
+import hashlib
 from datetime import datetime
 from typing import Dict, Optional, Tuple, Any
 
@@ -47,9 +48,7 @@ class GitHubService:
             self._github = Github(
                 auth=Auth.Token(self._token),
                 timeout=self.settings.github.timeout,
-                retry=self.settings.github.max_retries
-                if hasattr(self.settings.github, "max_retries")
-                else 3,
+                retry=self.settings.github.max_retries,
             )
             logger.info("GitHub service initialized with authentication")
         else:
@@ -60,6 +59,13 @@ class GitHubService:
 
         self._rate_limit_remaining: Optional[int] = None
         self._rate_limit_reset: Optional[datetime] = None
+
+    @property
+    def _token_fingerprint(self) -> str:
+        """Short, non-reversible token identifier used to scope cache entries."""
+        if not self._token:
+            return "anon"
+        return hashlib.sha256(self._token.encode()).hexdigest()[:12]
 
     def _get_github_token(self, provided_token: Optional[str]) -> Optional[str]:
         """Get GitHub token from various sources."""
@@ -246,7 +252,9 @@ class GitHubService:
         try:
             owner, repo_name = self._parse_repo_url(repo_url)
             full_name = f"{owner}/{repo_name}"
-            cache_key = f"repo:{full_name}"
+            # Scope by token: a cached Repository carries the auth it was fetched
+            # with, so different callers must not share the same entry.
+            cache_key = f"repo:{self._token_fingerprint}:{full_name}"
 
             # Check cache first
             cached_repo_data = self._redis_client.get(cache_key)

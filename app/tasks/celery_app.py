@@ -24,7 +24,7 @@ celery = Celery(
 # Celery configuration from settings
 celery.conf.update(
     task_serializer="json",
-    accept_content=["json"],  # Accept both JSON and pickle
+    accept_content=["json"],
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
