@@ -6,9 +6,8 @@ Contains async tasks for processing GitHub PR analysis with real GitHub integrat
 
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from uuid import UUID
-import concurrent.futures
 import os
 
 from app.tasks.celery_app import celery
@@ -30,27 +29,21 @@ from app.utils.exceptions import (
 )
 
 
+_worker_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
 def run_async_in_celery(coro):
     """
-    Helper to properly run async code in Celery workers.
+    Run a coroutine on a persistent event loop owned by the worker process.
 
-    Celery workers may or may not have an event loop, so we need to handle both cases.
+    Reusing a single loop keeps asyncpg connections bound to one loop across the
+    many async calls in a task, avoiding cross-loop errors in Celery's prefork
+    workers (where each child executes one task at a time).
     """
-    try:
-        # Try to get the current loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is running, we need a new thread
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, coro)
-                return future.result()
-        else:
-            # Loop exists but not running, we can use it
-            return loop.run_until_complete(coro)
-    except RuntimeError:
-        # No event loop, create one
-        return asyncio.run(coro)
+    global _worker_loop
+    if _worker_loop is None or _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+    return _worker_loop.run_until_complete(coro)
 
 
 async def update_task_status(
@@ -123,6 +116,7 @@ async def save_analysis_results(
                     task_id=task_id,
                     file_name=file_name,
                     file_path=file_path,
+                    file_size=file_analysis.get("size", 0),
                     language=file_analysis.get("language", "unknown"),
                     issues=file_analysis.get("issues", []),
                 )
@@ -145,8 +139,8 @@ async def save_analysis_results(
                 high_issues=summary_in.get("high_issues", sev.get("high", 0)),
                 medium_issues=summary_in.get("medium_issues", sev.get("medium", 0)),
                 low_issues=summary_in.get("low_issues", sev.get("low", 0)),
-                style_issues=summary_in.get("style_issues", typ.get("quality", 0)),
-                bug_issues=summary_in.get("bug_issues", typ.get("security", 0)),
+                style_issues=summary_in.get("style_issues", typ.get("style", 0)),
+                bug_issues=summary_in.get("bug_issues", typ.get("bug", 0)),
                 performance_issues=summary_in.get(
                     "performance_issues", typ.get("performance", 0)
                 ),
@@ -156,7 +150,9 @@ async def save_analysis_results(
                 maintainability_issues=summary_in.get(
                     "maintainability_issues", typ.get("maintainability", 0)
                 ),
-                best_practice_issues=summary_in.get("best_practice_issues", 0),
+                best_practice_issues=summary_in.get(
+                    "best_practice_issues", typ.get("best_practice", 0)
+                ),
                 code_quality_score=summary_in.get(
                     "code_quality_score", summary_in.get("overall_score", 0.0)
                 ),
@@ -272,8 +268,9 @@ def analyze_pr_task(
             )
             return {"message": "No files to analyze", "files": []}
 
-        # Initialize language detector
-        language_detector = LanguageDetector()
+        # File content lives on the PR's head repository (a fork for cross-repo PRs)
+        content_repo_url = f"https://github.com/{pr_metadata['head']['repo']}"
+        head_sha = pr_metadata["head"]["sha"]
 
         # Collect file contents for AI analysis
         files_for_analysis = []
@@ -310,7 +307,7 @@ def analyze_pr_task(
                 # Get file content
                 try:
                     file_content_data = github_service.get_file_content(
-                        repo_url, file_path, pr_metadata["head"]["sha"]
+                        content_repo_url, file_path, head_sha
                     )
 
                     # Extract the actual text content from the response
@@ -326,7 +323,7 @@ def analyze_pr_task(
                         continue
 
                     # Try to detect language from content if still unknown
-                    if language == "unknown" and file_content:
+                    if not language and file_content:
                         language = language_detector.detect_language_from_content(
                             file_content
                         )

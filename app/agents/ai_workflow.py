@@ -177,11 +177,18 @@ class AIWorkflow:
         """
         Formats the final state into the required output structure for database saving.
         """
+        files_by_path = {
+            f.get("filename"): f for f in final_state.get("files_data", [])
+        }
+
         formatted_files = {}
         for file_analysis in final_state.get("analysis_results", []):
             file_path = file_analysis["file_path"]
+            source = files_by_path.get(file_path, {})
+            content = source.get("content") or ""
             formatted_files[file_path] = {
-                "language": "python",
+                "language": source.get("language") or "unknown",
+                "size": len(content.encode("utf-8")),
                 "issues": file_analysis["issues"],
             }
 
