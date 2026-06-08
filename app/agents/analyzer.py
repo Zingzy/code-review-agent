@@ -55,24 +55,6 @@ class LangGraphAnalyzer:
             logger.error(f"AI analysis workflow failed: {e}", exc_info=True)
             return self._create_error_analysis(pr_data, str(e))
 
-    def _create_empty_analysis(
-        self, pr_data: Dict[str, Any], reason: str
-    ) -> Dict[str, Any]:
-        """Create empty analysis result."""
-        return {
-            "analysis_type": "ai_driven_empty",
-            "status": "completed",
-            "results": {
-                "files": [],
-                "summary": {
-                    "total_files": 0,
-                    "total_issues": 0,
-                    "critical_issues": 0,
-                    "reason": reason,
-                },
-            },
-        }
-
     def _create_error_analysis(
         self, pr_data: Dict[str, Any], error: str
     ) -> Dict[str, Any]:
